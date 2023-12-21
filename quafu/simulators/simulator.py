@@ -13,11 +13,8 @@
 # limitations under the License.
 """simulator for quantum circuit and qasm"""
 
-from typing import Optional, Union
-from .default_simulator import py_simulate, ptrace, permutebits
-from quafu import QuantumCircuit
-from quafu.algorithms import Hamiltonian
-from ..results.results import SimuResult
+from typing import Union
+
 import numpy as np
 
 from quafu import QuantumCircuit
@@ -35,7 +32,6 @@ def simulate(
     shots: int = 100,
     use_gpu: bool = False,
     use_custatevec: bool = False,
-    hamiltonian: Optional[Hamiltonian] = None,
 ) -> SimuResult:
     """Simulate quantum circuit
     Args:
