@@ -11,10 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Evolution that generate gate sequence based on operator"""
 
 from abc import ABC, abstractmethod
+
 import numpy as np
 from quafu.algorithms.hamiltonian import PauliOp
 import quafu.elements.element_gates as qeg

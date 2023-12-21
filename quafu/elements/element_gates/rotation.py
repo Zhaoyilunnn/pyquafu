@@ -1,8 +1,15 @@
 from typing import Dict
 
-from quafu.elements.matrices import (pmatrix, rx_mat, rxx_mat, ry_mat, ryy_mat,
-                                     rz_mat, rzz_mat)
 from quafu.elements.parameters import ParameterType
+from quafu.elements.matrices import (
+    pmatrix,
+    rx_mat,
+    rxx_mat,
+    ry_mat,
+    ryy_mat,
+    rz_mat,
+    rzz_mat,
+)
 
 from ..quantum_gate import ParametricGate, QuantumGate, SingleQubitGate
 

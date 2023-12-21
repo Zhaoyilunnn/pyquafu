@@ -289,7 +289,6 @@ class ControlledGate(MultiQubitGate, ABC):
 #     def __init__(self, pos: List[int]):
 #         super().__init__(pos=pos, paras=None)
 
-
 # class ParaMultiQubitGate(MultiQubitGate, ABC):
 #     def __init__(self, pos, paras):
 #         if paras is None:

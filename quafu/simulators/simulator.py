@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """simulator for quantum circuit and qasm"""
 
 from typing import Optional, Union
@@ -20,7 +19,12 @@ from quafu import QuantumCircuit
 from quafu.algorithms import Hamiltonian
 from ..results.results import SimuResult
 import numpy as np
+
+from quafu import QuantumCircuit
+
 from ..exceptions import QuafuError
+from ..results.results import SimuResult
+from .default_simulator import permutebits, ptrace, py_simulate
 
 
 def simulate(

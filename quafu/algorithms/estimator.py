@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Pre-build wrapper to calculate expectation value"""
-import numpy as np
-
 from typing import List, Optional
 from ..circuits.quantum_circuit import QuantumCircuit
 from ..tasks.tasks import Task
