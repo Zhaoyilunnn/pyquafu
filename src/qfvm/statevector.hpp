@@ -21,7 +21,7 @@ class StateVector{
     private:
         uint num_;
          // classical bit
-        uint cbit_num_;  
+        uint cbit_num_;
         vector<uint> creg_;
         size_t size_;
         std::unique_ptr<complex<real_t>[]> data_;
@@ -81,6 +81,9 @@ class StateVector{
         //Multiple-target gate
         void apply_multi_targe_gate_general(vector<pos_t> const& posv, uint control_num, RowMatrixXcd const&mat);
 
+        //Expectation and measurement
+        double expect_pauli(string paulistr, vector<pos_t> const& posv);
+
         // Measure and Reset
         std::pair<uint, double> sample_measure_probs(vector<pos_t> const& qbits);
         vector<double> probabilities() const;
@@ -117,7 +120,7 @@ class StateVector{
             auto data_ptr = data_.release();
             return std::make_tuple(std::move(data_ptr), size_);
         }
-        
+
         complex<real_t>* data(){ return data_.get(); }
         size_t size(){ return size_; }
         uint num(){ return num_; }
@@ -143,7 +146,7 @@ StateVector<real_t>::StateVector(complex<real_t> *data, size_t data_size)
 :
 data_(data),
 size_(data_size)
-{   
+{
     num_ = static_cast<int>(std::log2(size_));
 }
 
@@ -178,7 +181,7 @@ bool StateVector<real_t>::check_cif(const vector<pos_t> &cbits, const uint condi
         out *= 2;
         out += creg_[cbits[i]];
     }
-    return out == condition; 
+    return out == condition;
 }
 
 template <class real_t>
@@ -1172,7 +1175,7 @@ void StateVector<real_t>::apply_diagonal_matrix(vector<pos_t> const&qbits, vecto
                 for (int k = 0; k < (size_ >> 1); k+=1){
                     const auto inds = indexes(qbit0, qbit0, k);
                     func(inds);
-                }                
+                }
                 return;
             }
             // general [[z, 0], [0, 1]]
@@ -1184,7 +1187,7 @@ void StateVector<real_t>::apply_diagonal_matrix(vector<pos_t> const&qbits, vecto
             for (int k = 0; k < (size_ >> 1); k+=1){
                 const auto inds = indexes(qbit0, qbit0, k);
                 func(inds, convert(diag));
-            }   
+            }
             return;
         } else {
             // Lambda function for diagonal matrix multiplication
@@ -1198,12 +1201,12 @@ void StateVector<real_t>::apply_diagonal_matrix(vector<pos_t> const&qbits, vecto
             for (int k = 0; k < (size_ >> 1); k+=1){
                 const auto inds = indexes(qbit0, qbit0, k);
                 func(inds, convert(diag));
-            }  
+            }
         }
         return;
     }
     const uint N = qbits.size();
-    auto func = [&](const indexes_t &inds, const vector<std::complex<double>> &_diag) -> void { 
+    auto func = [&](const indexes_t &inds, const vector<std::complex<double>> &_diag) -> void {
         for(int i=0; i<2; ++i){
             const int k = inds[i];
             int iv = 0;
@@ -1230,7 +1233,7 @@ void StateVector<real_t>::update(vector<pos_t> const& qbits, const uint final_st
     vector<std::complex<double> >  matdiag(dim, 0.);
     matdiag[meas_state] = 1./ std::sqrt(meas_prob);
     apply_diagonal_matrix(qbits, matdiag);
-    
+
     //TODO: Add reset
     // for reset
      if(final_state != meas_state){
@@ -1243,7 +1246,7 @@ void StateVector<real_t>::update(vector<pos_t> const& qbits, const uint final_st
             perm[final_state * dim + meas_state] = 1.;
             perm[meas_state * dim + final_state] = 1.;
             for (uint j = 0; j < dim; j++){
-                if(j != final_state && j != meas_state) 
+                if(j != final_state && j != meas_state)
                     perm[j * dim + j] = 1.;
             }
             // apply permutation to swap state
@@ -1269,7 +1272,7 @@ void StateVector<real_t>::update(vector<pos_t> const& qbits, const uint final_st
             for (int k = 0; k < END; k+=1){
                 const auto inds = indexes(qs, qs_sorted, k);
                 func(inds, convert(perm));
-            }  
+            }
         }
     }
 }
@@ -1282,6 +1285,68 @@ void printVector(const std::vector<T>& vec) {
     std::cout << std::endl;
 }
 
+
+template <class real_t>
+double StateVector<real_t>::expect_pauli(string paulistr, vector<pos_t> const& posv)
+{
+    size_t flip_mask = 0;
+    size_t z_mask = 0;
+    size_t y_phase_num = 0;
+    uint flip_q = 0;
+
+    for (uint i = 0;i < posv.size();i++){
+        uint q = posv[i];
+        switch (paulistr[i]){
+            case 'I':
+                break;
+            case 'X':{
+                flip_mask += 1ll<<q;
+                flip_q = std::max(flip_q, q);
+                break;
+            }
+            case 'Y': {
+                flip_mask += 1ll<<q;
+                flip_q = std::max(flip_q, q);
+                y_phase_num++;
+                z_mask += 1ll<<q;
+                break;
+            }
+            case 'Z': {
+                z_mask += 1ll<<q;
+                break;
+            }
+        }
+    }
+
+    if (!flip_mask){
+        size_t rsize = size_;
+        double val = 0.;
+#pragma omp paraleel for reduction(+ : val)
+        for (size_t j = 0;j < rsize;++j){
+            uint z_phase_num = Qfutil::popcount(j & z_mask) % 2;
+            int sign =  1 - 2 * z_phase_num;
+            val += (data_[j] * std::conj(data_[j])).real() * sign;
+        }
+        return val;
+    }
+    else{
+        double val = 0.;
+        size_t rsize = size_>>1;
+#pragma omp parallel for reduction(+ : val)
+        for (size_t j = 0;j < rsize;++j)
+        {
+            size_t i0 = (j&((1ll<<flip_q)-1)) | (j>>flip_q<<flip_q<<1);
+            size_t i1 = i0 ^ flip_mask;
+            uint z_phase_num = Qfutil::popcount(i0 & z_mask) % 2;
+            uint total_phase_num = z_phase_num * 2 + y_phase_num;
+            std::complex<double> phase = Qfutil::PHASE_YZ[total_phase_num % 4];
+            val += 2. * (data_[i0] * std::conj(data_[i1]) * phase).real();
+        }
+        return val;
+    }
+}
+
+
 template <class real_t>
 std::pair<uint, double> StateVector<real_t>::sample_measure_probs(vector<pos_t> const& qbits){
     // 1. caculate actual measurement outcome
@@ -1290,7 +1355,7 @@ std::pair<uint, double> StateVector<real_t>::sample_measure_probs(vector<pos_t> 
     const int64_t END = 1LL << (num_ - N);
     vector<double> probs(DIM, 0.);
     vector<uint> qubits_sorted(qbits.begin(), qbits.end());
-    
+
     std::sort(qubits_sorted.begin(), qubits_sorted.end());
     if ((num_ == N) && ( qubits_sorted == qbits )){
         probs = probabilities();

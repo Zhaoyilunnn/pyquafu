@@ -13,13 +13,13 @@
 #  limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Union, List, Dict
+from typing import Dict, List, Optional, Union
 
+from .parameters import ParameterType
 
-__all__ = ['Instruction', 'Barrier', 'Measure', 'PosType', 'ParaType', 'Reset']
+__all__ = ["Instruction", "Barrier", "Measure", "PosType", "Reset"]
 
 PosType = Union[int, List[int]]
-ParaType = Union[float, int, List]
 
 
 class Instruction(ABC):
@@ -30,11 +30,19 @@ class Instruction(ABC):
         paras: Parameters of the instruction.
 
     """
+
     ins_classes = {}
 
-    def __init__(self, pos: PosType, paras: ParaType = None, *args, **kwargs):
+    def __init__(
+        self,
+        pos: PosType,
+        paras: Optional[Union[ParameterType, List[ParameterType]]] = None,
+        *args,
+        **kwargs,
+    ):
         self.pos = pos
         self.paras = paras
+        self._symbol = None
 
     @property
     @abstractmethod
@@ -54,7 +62,7 @@ class Instruction(ABC):
     @abstractmethod
     def named_pos(self) -> Dict:
         """dict-mapping for positions"""
-        return {'pos': self.pos}
+        return {"pos": self.pos}
 
     @name.setter
     def name(self, _):
@@ -91,6 +99,7 @@ class Barrier(Instruction):
     """
     Barrier instruction.
     """
+
     name = "barrier"
 
     # def to_dag_node(self):
@@ -123,11 +132,13 @@ class Barrier(Instruction):
         return f"{self.__class__.__name__}"
 
     def to_qasm(self):
-        return "barrier " + ",".join(["q[%d]" % p for p in range(min(self.pos), max(self.pos) + 1)])
+        return "barrier " + ",".join(
+            ["q[%d]" % p for p in range(min(self.pos), max(self.pos) + 1)]
+        )
 
 
 class Reset(Instruction):
-    name = 'reset'
+    name = "reset"
 
     def __init__(self, pos):
         super().__init__(pos)
@@ -161,6 +172,7 @@ class Measure(Instruction):
     """
     Measure instruction.
     """
+
     name = "measure"
 
     def __init__(self, bitmap: dict):
@@ -170,18 +182,20 @@ class Measure(Instruction):
 
     @property
     def named_pos(self):
-        return {'pos': self.pos}  # TODO
+        return {"pos": self.pos}  # TODO
 
     @property
     def named_paras(self):
         return self.named_paras
 
     def to_qasm(self):
-        lines = ["measure q[%d] -> meas[%d];\n" % (q, c) for q, c in zip(self.qbits, self.cbits)]
-        qasm = ''.join(lines)
+        lines = [
+            "measure q[%d] -> meas[%d];\n" % (q, c)
+            for q, c in zip(self.qbits, self.cbits)
+        ]
+        qasm = "".join(lines)
         return qasm
 
 
 Instruction.register_ins(Barrier)
 Instruction.register_ins(Measure)
-

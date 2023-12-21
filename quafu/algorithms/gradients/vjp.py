@@ -23,9 +23,8 @@ from quafu.algorithms.gradients import ParamShift
 
 def _generate_expval_z(num_qubits: int):
     obs_list = []
-    base_pauli = "I" * num_qubits
     for i in range(num_qubits):
-        pauli = base_pauli[:i] + "Z" + base_pauli[i + 1 :]
+        pauli = "Z" + str(i)
         obs_list.append(Hamiltonian.from_pauli_list([(pauli, 1)]))
     return obs_list
 

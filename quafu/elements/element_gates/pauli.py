@@ -1,11 +1,21 @@
 import numpy as np
-
-from quafu.elements.matrices import XMatrix, YMatrix, ZMatrix, WMatrix, SWMatrix
+from quafu.elements.matrices import (SWMatrix, WMatrix, XMatrix, YMatrix,
+                                     ZMatrix)
 from quafu.elements.quantum_gate import FixedGate, SingleQubitGate
 
-__all__ = ['IdGate', 'XGate', 'YGate', 'ZGate',
-           'WGate', 'SWGate', 'SWdgGate',
-           'SXGate', 'SYGate', 'SXdgGate', 'SYdgGate']  # hint: "SZ" gate is S contained in Clifford gates
+__all__ = [
+    "IdGate",
+    "XGate",
+    "YGate",
+    "ZGate",
+    "WGate",
+    "SWGate",
+    "SWdgGate",
+    "SXGate",
+    "SYGate",
+    "SXdgGate",
+    "SYdgGate",
+]  # hint: "SZ" gate is S contained in Clifford gates
 
 
 class IdGate(FixedGate, SingleQubitGate):
@@ -41,7 +51,8 @@ class ZGate(FixedGate, SingleQubitGate):
 
 
 class WGate(FixedGate, SingleQubitGate):
-    """ (X+Y)/sqrt(2) """
+    """(X+Y)/sqrt(2)"""
+
     name = "W"
     matrix = WMatrix
 

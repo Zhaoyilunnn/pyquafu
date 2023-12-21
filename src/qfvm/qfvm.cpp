@@ -40,7 +40,7 @@ std::pair<std::map<uint, uint>, py::array_t<complex<double>> > simulate_circuit(
     vector<std::pair<uint,uint>>measures = circuit.measure_vec();
     std::map<uint,bool>cbit_measured;
     for(auto &pair: measures){
-        cbit_measured[pair.second] = true;        
+        cbit_measured[pair.second] = true;
     }
     // Store outcome's count
     std::map<uint, uint> outcount;
@@ -59,7 +59,7 @@ std::pair<std::map<uint, uint>, py::array_t<complex<double>> > simulate_circuit(
             vector<uint> tmpcreg = state.creg();
             uint outcome = 0;
             for(uint j=0;j<tmpcreg.size();j++){
-                if(cbit_measured.find(j) == cbit_measured.end()) continue; 
+                if(cbit_measured.find(j) == cbit_measured.end()) continue;
                 outcome *= 2;
                 outcome += tmpcreg[j];
             }
@@ -81,7 +81,7 @@ std::pair<std::map<uint, uint>, py::array_t<complex<double>> > simulate_circuit(
         // map to reg
         for(uint i = 0; i < global_state.size(); i++){
             if(tmpcount[i] == 0) continue;
-            vector<uint> tmpcreg(global_state.cbit_num(), 0); 
+            vector<uint> tmpcreg(global_state.cbit_num(), 0);
             vector<uint> tmpout = int2vec(i, 2);
             if(tmpout.size() < global_state.num())
                 tmpout.resize(global_state.num());
@@ -90,17 +90,35 @@ std::pair<std::map<uint, uint>, py::array_t<complex<double>> > simulate_circuit(
             }
             uint outcome = 0;
             for(uint j=0;j<tmpcreg.size();j++){
-                if(cbit_measured.find(j) == cbit_measured.end()) continue; 
+                if(cbit_measured.find(j) == cbit_measured.end()) continue;
                 outcome *= 2;
                 outcome += tmpcreg[j];
             }
             if(outcount.find(outcome) != outcount.end()) outcount[outcome] += tmpcount[i];
             else outcount[outcome] = tmpcount[i];
         }
-    } 
-    // return 
+    }
+    // return
     if(data_size == 0) return std::make_pair(outcount, to_numpy(global_state.move_data_to_python()));
-    else return std::make_pair(outcount, np_inputstate);  
+    else return std::make_pair(outcount, np_inputstate);
+}
+
+py::object expect_statevec(py::array_t<complex<double>> const&np_inputstate, py::list const paulis)
+{
+    py::buffer_info buf = np_inputstate.request();
+    auto* data_ptr = reinterpret_cast<std::complex<double>*>(buf.ptr);
+    size_t data_size = buf.size;
+    StateVector<double> state(data_ptr, buf.size);
+    py::list pyres;
+    for (auto pauli_h : paulis){
+         py::object pypauli = py::reinterpret_borrow<py::object>(pauli_h);
+         std::vector<pos_t> posv = pypauli.attr("pos").cast<std::vector<pos_t>>();
+         string paulistr = pypauli.attr("paulistr").cast<string>();
+        double expec = state.expect_pauli(paulistr, posv);
+        pyres.attr("append")(expec);
+    }
+    state.move_data_to_python();
+    return pyres;
 }
 
 #ifdef _USE_GPU
@@ -151,7 +169,10 @@ py::object simulate_circuit_custate(py::object const&pycircuit, py::array_t<comp
 
 PYBIND11_MODULE(qfvm, m) {
     m.doc() = "Qfvm simulator";
+
     m.def("simulate_circuit", &simulate_circuit, "Simulate with circuit", py::arg("circuit"), py::arg("inputstate")= py::array_t<complex<double>>(0), py::arg("shots"));
+
+    m.def("expect_statevec", &expect_statevec, "Calculate paulis expectation", py::arg("inputstate"), py::arg("paulis"));
 
     #ifdef _USE_GPU
      m.def("simulate_circuit_gpu", &simulate_circuit_gpu, "Simulate with circuit", py::arg("circuit"), py::arg("inputstate")= py::array_t<complex<double>>(0));
@@ -161,4 +182,3 @@ PYBIND11_MODULE(qfvm, m) {
     m.def("simulate_circuit_custate", &simulate_circuit_custate, "Simulate with circuit", py::arg("circuit"), py::arg("inputstate")= py::array_t<complex<double>>(0));
     #endif
 }
-

@@ -1,3 +1,2 @@
 # !/bin/bash
-
-rm -rf _skbuild/ build/ *.egg-info
+rm -rf _skbuild/ build/ *.egg-info/ dist/

@@ -1,9 +1,9 @@
 import numpy as np
-
 from quafu.elements.matrices import HMatrix, SMatrix
-from ..quantum_gate import SingleQubitGate, FixedGate
 
-__all__ = ['HGate', 'SGate', 'SdgGate', 'TGate', 'TdgGate']
+from ..quantum_gate import FixedGate, SingleQubitGate
+
+__all__ = ["HGate", "SGate", "SdgGate", "TGate", "TdgGate"]
 
 
 class HGate(SingleQubitGate, FixedGate):

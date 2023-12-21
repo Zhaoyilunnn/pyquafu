@@ -1,20 +1,20 @@
-# PyQuafu
+# PyIqcs
 
-Python toolkit for submitting quantum circuits on the superconducting quantum computing cloud [Quafu](http://quafu.baqis.ac.cn/).
+Python toolkit for submitting quantum circuits on the superconducting quantum computing cloud [Iqcs](http://iqcs.baqis.ac.cn/). 
 
 
 ## Introduction
 
-PyQuafu is developed for the users of [Quafu](http://quafu.baqis.ac.cn/) to construct, compile and execute quantum circuits on real quantum devices. One can use PyQuafu to interact with different quantum backends provides by the experimental group of [Quafu](http://quafu.baqis.ac.cn/).
+PyIqcs is developed for the users of [Iqcs](http://iqcs.baqis.ac.cn/) to construct, compile and execute quantum circuits on real quantum devices. One can use PyIqcs to interact with different quantum backends provides by the experimental group of [Iqcs](http://iqcs.baqis.ac.cn/). 
 
 ## Installation
 
 You can directly install via PyPI,
 
 ```
-pip install pyquafu
+pip install pyiqcs 
 ```
-
+ 
 or build from source
 
 ```
@@ -22,15 +22,13 @@ pip install -r requirements.txt
 python setup.py install
 ```
 
-Note that we visualize DAG(directed acyclic graph) through python package ``graphviz``. And if you need it, make sure [Graphviz software](https://graphviz.org/) being installed on your system. Refer to [graphviz · PyPI](https://pypi.org/project/graphviz/#description) for installation guidance.
-
 ## GPU support
-To install PyQuafu with GPU-based circuit simulator, you need build from the source and make sure that [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) is installed. You can run
+To install PyIqcs with GPU-based circuit simulator, you need build from the source and make sure that [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) is installed. You can run
 
 ```
 python setup.py install -DUSE_GPU=ON
 ```
-to install the GPU version. If you further have [cuQuantum](https://developer.nvidia.com/cuquantum-sdk) installed, you can install PyQuafu with cuQuantum support.
+to install the GPU version. If you further have [cuQuantum](https://developer.nvidia.com/cuquantum-sdk) installed, you can install PyIqcs with cuQuantum support.
 ```
 python setup.py install -DUSE_GPU=ON -DUSE_CUQUANTUM=ON
 ```
@@ -46,9 +44,9 @@ If you are using an Apple silicon Mac and meet the error "illegal hardware instr
 
 ### 1.quantum_rl
 
-The example shows quantum reinforcement learning interacts with Quafu to solve CartPole environment.
+The example shows quantum reinforcement learning interacts with Iqcs to solve CartPole environment. 
 
-Refer to https://github.com/enchanted123/quantum-RL-with-quafu for more details.
+Refer to https://github.com/enchanted123/quantum-RL-with-iqcs for more details.
 
 ## Authors
 This project is developed by the quantum cloud computing team at the Beijing Academy of Quantum Information Sciences.

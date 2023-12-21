@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from contextlib import contextmanager
-from typing import Any, List
+from typing import Any, Iterable, List, Optional
 
 import numpy as np
 
@@ -21,7 +21,9 @@ import quafu.elements.element_gates as qeg
 from quafu.elements.classical_element import Cif
 from quafu.elements.instruction import Instruction
 from quafu.elements import Measure, Reset
+from quafu.elements.parameters import ParameterType
 from quafu.elements.pulses import QuantumPulse
+from quafu.elements.quantum_gate import CircuitWrapper, ControlCircuitWrapper
 from ..elements import (
     Barrier,
     Delay,
@@ -38,12 +40,12 @@ from ..exceptions import CircuitError
 import copy
 
 
-class QuantumCircuit(object):
+class QuantumCircuit:
     """
     Representation of quantum circuit.
     """
 
-    def __init__(self, qnum: int, cnum: int = None, *args, **kwargs):
+    def __init__(self, qnum: int, cnum: Optional[int] = None, *args, **kwargs):
         """
         Initialize a QuantumCircuit object
 
@@ -104,6 +106,15 @@ class QuantumCircuit(object):
     @gates.setter
     def gates(self, gates: list):
         self._gates = gates
+
+    def __lshift__(self, operation: Instruction):
+        max_pos = max(operation.pos) if isinstance(operation.pos, Iterable) else operation.pos
+        if max_pos >= self.num:
+            raise CircuitError("Operation act on qubit that not allocated")
+        self.add_ins(operation)
+        if isinstance(operation, CircuitWrapper) or isinstance(operation, ControlCircuitWrapper):
+            self._has_wrap = True
+        return self
 
     # TODO(qtzhuang): add_gates is just a temporary call function to add gate from gate_list
     def add_gates(self, gates: list):
@@ -545,7 +556,7 @@ class QuantumCircuit(object):
         self.add_ins(qeg.SWGate(pos))
         return self
 
-    def rx(self, pos: int, para: float) -> "QuantumCircuit":
+    def rx(self, pos: int, para: ParameterType) -> "QuantumCircuit":
         """
         Single qubit rotation Rx gate.
 
@@ -556,7 +567,7 @@ class QuantumCircuit(object):
         self.add_ins(qeg.RXGate(pos, para))
         return self
 
-    def ry(self, pos: int, para: float) -> "QuantumCircuit":
+    def ry(self, pos: int, para: ParameterType) -> "QuantumCircuit":
         """
         Single qubit rotation Ry gate.
 
@@ -567,7 +578,7 @@ class QuantumCircuit(object):
         self.add_ins(qeg.RYGate(pos, para))
         return self
 
-    def rz(self, pos: int, para: float) -> "QuantumCircuit":
+    def rz(self, pos: int, para: ParameterType) -> "QuantumCircuit":
         """
         Single qubit rotation Rz gate.
 
@@ -578,7 +589,7 @@ class QuantumCircuit(object):
         self.add_ins(qeg.RZGate(pos, para))
         return self
 
-    def p(self, pos: int, para: float) -> "QuantumCircuit":
+    def p(self, pos: int, para: ParameterType) -> "QuantumCircuit":
         """
         Phase gate
 
@@ -651,7 +662,7 @@ class QuantumCircuit(object):
         self.add_ins(qeg.CTGate(ctrl, tar))
         return self
 
-    def cp(self, ctrl: int, tar: int, para: float) -> "QuantumCircuit":
+    def cp(self, ctrl: int, tar: int, para: ParameterType) -> "QuantumCircuit":
         """
         Control-P gate.
 
@@ -827,10 +838,10 @@ class QuantumCircuit(object):
     def reset(self, qlist: List[int] = None) -> "QuantumCircuit":
         """
         Add reset for qubits in qlist.
-     
+
         Args:
             qlist (list[int]): A list contain the qubit need add reset. When qlist contain at least two qubit, the barrier will be added from minimum qubit to maximum qubit. For example: barrier([0, 2]) create barrier for qubits 0, 1, 2. To create discrete barrier, using barrier([0]), barrier([2]).
-        
+
         Note: reset only support for simulator `qfvm_circ`.
         """
         if qlist is None:
@@ -879,26 +890,26 @@ class QuantumCircuit(object):
     @contextmanager
     def cif(self, cbits: List[int], condition: int):
         """
-        Create an `if` statement on this circuit. 
-        If cbits equals to condition, the subsequent operaterations will be performed. 
+        Create an `if` statement on this circuit.
+        If cbits equals to condition, the subsequent operaterations will be performed.
         Use  the `measure` statement to explicitly assign value to the cbit before using it as `cbits` argument
 
         Args:
             cbits: List of cbit that are used for comparison.
-            condition(int): A condition to be evaluated with cbits that filled by `measure` operation. 
+            condition(int): A condition to be evaluated with cbits that filled by `measure` operation.
 
-        
+
         For example::
             from quafu import QuantumCircuit
             qc = QuantumCircuit(2,2)
-            
+
             qc.h(0)
             qc.cx(0,1)
             qc.measure([0],[0])
             with qc.cif(cbits=[0], condition=1):
                 qc.x(2)
             qc.measure([2],[2])
-            
+
         Note: cif only support for simulator `qfvm_circ`.
         """
         # check cbits
