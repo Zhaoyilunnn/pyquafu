@@ -13,9 +13,9 @@
 # limitations under the License.
 import numpy as np
 import torch.nn
-from quafu.algorithms import QuantumNeuralNetwork
+from quafu.algorithms.ansatz import QuantumNeuralNetwork
 from quafu.algorithms.gradients import compute_vjp, jacobian
-from quafu.algorithms.interface.torch import execute
+from quafu.algorithms.interface.torch import TorchTransformer
 from quafu.algorithms.templates.basic_entangle import BasicEntangleLayers
 from quafu.circuits.quantum_circuit import QuantumCircuit
 
@@ -28,7 +28,7 @@ class ModelStandardCircuit(torch.nn.Module):
 
     def forward(self, features):
         out = self.linear(features)
-        out = execute(self.circ, out, method="external")
+        out = TorchTransformer.execute(self.circ, out, method="external")
         return out
 
 
@@ -38,7 +38,7 @@ class ModelQuantumNeuralNetwork(torch.nn.Module):
         self.circ = circ
 
     def forward(self, features):
-        out = execute(self.circ, features)
+        out = TorchTransformer.execute(self.circ, features)
         return out
 
 
