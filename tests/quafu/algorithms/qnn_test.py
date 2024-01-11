@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
+import pytest
 import torch.nn
 from quafu.algorithms.ansatz import QuantumNeuralNetwork
 from quafu.algorithms.gradients import compute_vjp, jacobian
@@ -106,6 +107,19 @@ class TestLayers:
         # Legacy invokation style
         model = ModelQuantumNeuralNetwork(qnn)
         self._model_grad(model, batch_size)
+
+        # New invokation style
+        model = ModelQuantumNeuralNetworkNative(qnn)
+        self._model_grad(model, batch_size)
+
+    @pytest.mark.skip(reason="github env doesn't have token")
+    def test_torch_layer_qnn_real_machine(self):
+        """Use QuantumNeuralNetwork ansatz"""
+        weights = np.random.randn(2, 2)
+        entangle_layer = BasicEntangleLayers(weights, 2)
+        qnn = QuantumNeuralNetwork(2, [entangle_layer], backend="ScQ-P10")
+        qnn.measure([0, 1], [0, 1])
+        batch_size = 1
 
         # New invokation style
         model = ModelQuantumNeuralNetworkNative(qnn)

@@ -146,7 +146,9 @@ class QuantumNeuralNetwork(Ansatz):
     """A Wrapper of quantum circuit as QNN"""
 
     # TODO(zhaoyilun): docs
-    def __init__(self, num_qubits: int, layers: List[Any], interface="torch"):
+    def __init__(
+        self, num_qubits: int, layers: List[Any], interface="torch", backend="sim"
+    ):
         """"""
         # Get transformer according to specified interface
         self._transformer = InterfaceProvider.get(interface)
@@ -154,11 +156,16 @@ class QuantumNeuralNetwork(Ansatz):
 
         # FIXME(zhaoyilun): don't use this default value
         self._weights = np.empty((1, 1))
+
+        self._backend = backend
         super().__init__(num_qubits)
 
     def __call__(self, features):
         """Compute outputs of QNN given input features"""
-        return self._transformer.execute(self, features)
+        from .estimator import Estimator
+
+        estimator = Estimator(self, backend=self._backend)
+        return self._transformer.execute(self, features, estimator=estimator)
 
     def _build(self):
         """Essentially initialize weights using transformer"""
