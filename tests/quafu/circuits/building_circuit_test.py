@@ -2,7 +2,7 @@ import quafu.elements.element_gates as qeg
 from quafu.circuits import QuantumCircuit
 
 
-class BuildingCircuitTest:
+class TestBuildingCircuit:
     def test_add(self):
         q = QuantumCircuit(3)
         q << (qeg.XGate(1))
