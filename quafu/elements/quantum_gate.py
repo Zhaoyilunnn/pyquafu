@@ -1,16 +1,42 @@
+#  (C) Copyright 2023 Beijing Academy of Quantum Information Sciences
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+
 import copy
 from abc import ABC, abstractmethod
 from typing import Dict, Iterable, List, Optional, Union, Callable
 
 import numpy as np
+from numpy import ndarray
 
 from quafu.elements.matrices.mat_utils import reorder_matrix
+
 from .instruction import Instruction, PosType
+from .oracle import OracleGate
 from .parameters import ParameterType
 from .utils import extract_float
 
-
 __all__ = ['QuantumGate', 'FixedGate', 'ParametricGate', 'SingleQubitGate', 'MultiQubitGate', 'ControlledGate']
+
+
+HERMITIAN = ['id', 'x', 'y', 'z', 'h', 'w', 'cx', 'cz', 'cy', 'cnot', 'swap', 'mcx', 'mxy', 'mcz']
+ROTATION = ['rx', 'ry', 'rz', 'p', 'rxx', 'ryy', 'rzz', 'cp']
+paired = {k: k+'dg' for k in ['sx', 'sy', 's', 't', 'sw']}
+PAIRED = {**paired, **{v: k for k, v in paired.items()}}
+
+
+MatrixType = Union[np.ndarray, Callable]
 
 
 class QuantumGate(Instruction, ABC):
@@ -22,68 +48,38 @@ class QuantumGate(Instruction, ABC):
         paras: Parameters of this gate.
 
     Properties:
+        symbol: Text symbolic representation of this gate.
         matrix: Matrix representation of this gate.
+
+    Functions:
+        register_gate: Register a new gate class.
+        to_qasm: Convert this gate to QASM format.
+        update_paras: Update the parameters of this gate.
+
     """
     gate_classes = {}
 
-    def __init__(
-        self,
-        pos: PosType,
-        paras: Optional[Union[ParameterType, List[ParameterType]]] = None,
-    ):
+    def __init__(self,
+                 pos: PosType,
+                 paras: Optional[Union[ParameterType, List[ParameterType]]] = None,
+                 matrix: Optional[Union[ndarray, Callable]] = None,
+                 ):
         super().__init__(pos, paras)
         self._symbol = None
+        self._matrix = matrix
 
-        # if paras is not None:
-        #     if isinstance(paras, Iterable):
-        #         self.symbol = (
-        #             "%s(" % self.name
-        #             + ",".join(["%.3f" % para for para in self.paras])
-        #             + ")"
-        #         )
-        #     else:
-        #         self.symbol = "%s(%.3f)" % (self.name, paras)
-        # else:
-        #     self.symbol = "%s" % self.name
-
-    @property
-    def _paras(self):
-        return extract_float(self.paras)
-
-    @property
-    def symbol(self):
-        if self._symbol is not None:
-            return self._symbol
-
-        # TODO: Use latex repr for Parameter
-        if self.paras is not None:
-            symbol = (
-                "%s(" % self.name
-                + ",".join(["%.3f" % para for para in self._paras])
-                + ")"
-            )
-            return symbol
+    def __str__(self):
+        # only when the gate is a known(named) gate, the matrix is not shown
+        if self.name.lower() in self.gate_classes:
+            properties_names = ['pos', 'paras']
         else:
-            return "%s" % self.name
+            properties_names = ['pos', 'paras', 'matrix']
+        properties_values = [getattr(self, x) for x in properties_names]
+        return "%s:\n%s" % (self.__class__.__name__, '\n'.join(
+            [f"{x} = {repr(properties_values[i])}" for i, x in enumerate(properties_names)]))
 
-    @symbol.setter
-    def symbol(self, symbol):
-        self._symbol = symbol
-
-    def update_params(self, paras: Union[ParameterType, List[ParameterType]]):
-        """Update parameters of this gate"""
-        if paras is None:
-            return
-        self.paras = paras
-
-    @property
-    @abstractmethod
-    def matrix(self):
-        if self._matrix is not None:
-            return self._matrix
-        else:
-            raise NotImplementedError("Matrix is not implemented for %s" % self.__class__.__name__ +
-                                      ", this should never happen.")
+    def __repr__(self):
+        return f"{self.__class__.__name__}"
 
     @classmethod
     def register_gate(cls, subclass, name: str = None):
@@ -104,26 +100,49 @@ class QuantumGate(Instruction, ABC):
     @classmethod
     def register(cls, name: str = None):
         """Decorator for register_gate."""
+
         def wrapper(subclass):
             cls.register_gate(subclass, name)
             return subclass
 
         return wrapper
 
-    def __str__(self):
-        # only when the gate is a known(named) gate, the matrix is not shown
-        if self.name.lower() in self.gate_classes:
-            properties_names = ['pos', 'paras']
+    @property
+    def _paras(self):
+        return extract_float(self.paras)
+
+    @property
+    def symbol(self) -> str:
+        """Symbol used in text-drawing."""
+        if self._symbol is not None:
+            return self._symbol
+
+        # TODO: Use latex repr for Parameter
+        if self.paras is not None:
+            symbol = (
+                    "%s(" % self.name
+                    + ",".join(["%.3f" % para for para in self._paras])
+                    + ")"
+            )
+            return symbol
         else:
-            properties_names = ['pos', 'paras', 'matrix']
-        properties_values = [getattr(self, x) for x in properties_names]
-        return "%s:\n%s" % (self.__class__.__name__, '\n'.join(
-            [f"{x} = {repr(properties_values[i])}" for i, x in enumerate(properties_names)]))
+            return "%s" % self.name
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}"
+    @symbol.setter
+    def symbol(self, symbol: str):
+        self._symbol = symbol
 
-    def to_qasm(self):
+    @property
+    @abstractmethod
+    def matrix(self):
+        if self._matrix is not None:
+            return self._matrix
+        else:
+            raise NotImplementedError("Matrix is not implemented for %s" % self.__class__.__name__ +
+                                      ", this should never happen.")
+
+    def to_qasm(self) -> str:
+        """OPENQASM 2.0"""
         # TODO: support register naming
         qstr = "%s" % self.name.lower()
 
@@ -139,6 +158,75 @@ class QuantumGate(Instruction, ABC):
             qstr += "q[%d]" % self.pos
 
         return qstr
+
+    def update_params(self, paras: Union[ParameterType, List[ParameterType]]):
+        """Update parameters of this gate"""
+        if paras is None:
+            return
+        self.paras = paras
+
+    # # # # # # # # # # # # algebraic operations # # # # # # # # # # # #
+    def power(self, n) -> "QuantumGate":
+        """Return another gate equivalent to n-times operation of the present gate."""
+        name = self.name.lower()
+        if name in HERMITIAN:
+            if n % 2 == 0:
+                return self.gate_classes["id"](self.pos)
+            else:
+                return copy.deepcopy(self)
+        elif name in ROTATION:
+            return self.gate_classes[name](self.pos, self.paras * n)
+        elif name in PAIRED:
+            # TODO: decide order-2/4 gate
+            raise NotImplementedError
+        else:
+            if not isinstance(self, OracleGate):
+                raise NotImplementedError(f"Power is not implemented for {self.__class__.__name__}")
+            else:
+                gate = copy.deepcopy(self)
+                gate.gate_structure = [gate.power(n) for gate in self.gate_structure]
+
+    def dagger(self) -> "QuantumGate":
+        """Return the hermitian conjugate gate with same the position."""
+        name = self.name
+        if name in HERMITIAN:  # Hermitian gate
+            return copy.deepcopy(self)
+        if name in ROTATION:  # rotation gate
+            return self.gate_classes[name](self.pos, -self.paras)
+        elif name in PAIRED:    # pairwise-occurrence gate
+            _conj_name = PAIRED[name]
+            return self.gate_classes[name](self.pos)
+        else:
+            if not isinstance(self, OracleGate):
+                raise NotImplementedError(f"Power is not implemented for {self.__class__.__name__}")
+            else:
+                gate = copy.deepcopy(self)
+                gate.gate_structure = [gate.dagger() for gate in self.gate_structure]
+            raise NotImplementedError
+
+    def ctrl_by(self, ctrls: Union[int, List[int]]) -> "QuantumGate":
+        """Return a controlled gate with present gate as the controlled target."""
+        if isinstance(ctrls, int):
+            ctrls = [ctrls]
+
+        pos = [self.pos] if isinstance(self.pos, int) else self.pos
+        if set(ctrls) & set(pos):
+            raise ValueError("Control qubits should not be overlap with target qubits.")
+
+        if isinstance(self, ControlledGate):
+            # TODO: [m1]control-([m2]control-U) = [m1+m2]control-U
+            raise NotImplementedError
+
+        name = self.name.lower()
+        if name in ['x', 'y', 'z']:
+            cname = "mc" + self.name.lower()
+            cop = self.gate_classes[cname](ctrls, self.pos)
+            return cop
+        else:
+            # TODO: make ControlledGate actual instead of abstract class,
+            #       use class method to generate controlled gate from target gate object
+            raise NotImplementedError
+            # return ControlledU("C" + self.name, ctrls, self)
 
 
 # Gate types below are statically implemented to support type identification
@@ -202,16 +290,23 @@ class FixedGate(QuantumGate, ABC):
         return {}
 
 
-class ControlledGate(MultiQubitGate, ABC):
+class ControlledGate(MultiQubitGate):
     """ Controlled gate class, where the matrix act non-trivially on target qubits"""
 
-    def __init__(self, targe_name, ctrls: List[int], targs: List[int], paras, tar_matrix):
+    def __init__(self,
+                 targ_name: str,
+                 ctrls: PosType,
+                 targs: PosType,
+                 paras: Optional[Union[ParameterType, List[ParameterType]]] = None,
+                 tar_matrix: MatrixType = None):
         MultiQubitGate.__init__(self, ctrls + targs, paras)
         self.ctrls = ctrls
         self.targs = targs
-        self.targ_name = targe_name
+        self.targ_name = targ_name
         self._targ_matrix = tar_matrix
+        self.__build_matrix__()
 
+    def __build_matrix__(self):
         # set matrix
         # TODO: change matrix according to control-type 0/1
         c_n, t_n, n = self.ct_nums
@@ -222,32 +317,16 @@ class ControlledGate(MultiQubitGate, ABC):
         self._matrix[ctrl_dim:, ctrl_dim:] = self.targ_matrix
         self._matrix = reorder_matrix(self._matrix, self.pos)
 
-        # if paras is not None:
-        #     if isinstance(paras, Iterable):
-        #         self.symbol = (
-        #             "%s(" % self.targ_name
-        #             + ",".join(["%.3f" % para for para in self.paras])
-        #             + ")"
-        #         )
-        #     else:
-        #         self.symbol = "%s(%.3f)" % (self.targ_name, paras)
-        # else:
-        #     self.symbol = "%s" % self.targ_name
+    @property
+    def name(self) -> str:
+        return 'c' + self.targ_name
 
     @property
     def symbol(self):
         if self._symbol is not None:
             return self._symbol
-
-        if self.paras is not None:
-            symbol = (
-                "%s(" % self.targ_name
-                + ",".join(["%.3f" % para for para in self._paras])
-                + ")"
-            )
-            return symbol
         else:
-            return "%s" % self.targ_name
+            return self.targ_name
 
     @symbol.setter
     def symbol(self, symbol):
@@ -287,126 +366,98 @@ class ControlledGate(MultiQubitGate, ABC):
     def named_pos(self) -> Dict:
         return {"ctrls": self.ctrls, "targs": self.targs}
 
-
-# class ParaSingleQubitGate(SingleQubitGate, ABC):
-#     def __init__(self, pos, paras: float):
-#         if paras is None:
-#             raise ValueError("`paras` can not be None for ParaSingleQubitGate")
-#         elif isinstance(paras, int):
-#             paras = float(paras)
-#
-#         if not isinstance(paras, float):
-#             raise TypeError(f"`paras` must be float or int for ParaSingleQubitGate, "
-#                             f"instead of {type(paras)}")
-#         super().__init__(pos, paras=paras)
-#
-#     @property
-#     def named_paras(self) -> Dict:
-#         return {'paras': self.paras}
-
-# class FixedMultiQubitGate(MultiQubitGate, ABC):
-#     def __init__(self, pos: List[int]):
-#         super().__init__(pos=pos, paras=None)
-
-# class ParaMultiQubitGate(MultiQubitGate, ABC):
-#     def __init__(self, pos, paras):
-#         if paras is None:
-#             raise ValueError("`paras` can not be None for ParaMultiQubitGate")
-#         super().__init__(pos, paras)
-
-
-class FixedGate(QuantumGate, ABC):
-    def __init__(self, pos):
-        super().__init__(pos=pos, paras=None)
-
     @property
     def named_paras(self) -> Dict:
-        return {}
+        return {"paras": self.paras}
 
+    @classmethod
+    def from_target(cls, targ: QuantumGate, ctrls: PosType):
+        return cls(targ.name, ctrls, targ.pos, targ.paras, targ.matrix)
 
-class CircuitWrapper(QuantumGate):
-    def __init__(self, name: str, circ, qbits=[]):
-        self.name = name
-        self.pos = list(range(circ.num))
-        self.circuit = copy.deepcopy(circ)
-
-        # TODO:Handle wrapper paras
-        # if hasattr(circ, "paras"):
-        #     self._paras = circ.paras
-        # else:
-        #     self._paras = []
-        #     for op in self.circuit.operations:
-        #         self._paras.extend(op.paras)
-
-        if qbits:
-            self._reallocate(qbits)
-
-    # @property
-    # def paras(self):
-    #     return self._paras
-
-    # @paras.setter
-    # def paras(self, __paras):
-    #     self._paras = __paras
-    #     self.circuit.paras = __paras
-
-    def _reallocate(self, qbits):
-        num = max(self.circuit.num - 1, max(qbits)) + 1
-        self.pos = qbits
-        self.circuit._reallocate(num, qbits)
-
-    @property
-    def symbol(self):
-        return "%s" % self.name
-
-    def add_controls(self, ctrls: List[int] = []) -> QuantumGate:
-        return ControlCircuitWrapper("MC" + self.name, self, ctrls)
-
-    def power(self, n: int):
-        self.name += "^%d" % n
-        self.circuit = self.circuit.power(n)
-        return self
-
-    def dagger(self):
-        self.name += "^†"
-        self.circuit = self.circuit.dagger()
-        return self
-
-    def to_qasm(self):
-        qasm = ""
-        for operation in self.circuit.operations:
-            qasm += operation.to_qasm() + ";\n"
-        return qasm
-
-
-class ControlCircuitWrapper(CircuitWrapper):
-    def __init__(self, name: str, circwrp: CircuitWrapper, ctrls: List[int]):
-        self.name = name
-        self.ctrls = ctrls
-        self.targs = circwrp.pos
-        self.circuit = circwrp.circuit.add_controls(len(ctrls), ctrls, self.targs)
-        self.pos = list(range(self.circuit.num))
-        self._targ_name = circwrp.name
-
-    @property
-    def symbol(self):
-        return "%s" % self._targ_name
-
-    def power(self, n: int):
-        self._targ_name += "^%d" % n
-        return super().power(n)
-
-    def dagger(self):
-        self.name += "^†"
-        return super().dagger()
-
-    def _reallocate(self, qbits):
-        num = max(self.circuit.num - 1, max(qbits)) + 1
-        self.pos = qbits
-        self.circuit._reallocate(num, qbits)
-        qbits_map = dict(zip(range(len(qbits)), qbits))
-        for i in range(len(self.ctrls)):
-            self.ctrls[i] = qbits_map[self.ctrls[i]]
-
-        for i in range(len(self.targs)):
-            self.targs[i] = qbits_map[self.targs[i]]
+# TODO(ChenWei): update OracleGate so that compatible with CtrlGate
+# class CircuitWrapper(QuantumGate):
+#     def __init__(self, name: str, circ, qbits=[]):
+#         self.name = name
+#         self.pos = list(range(circ.num))
+#         self.circuit = copy.deepcopy(circ)
+#
+#         # TODO:Handle wrapper paras
+#         # if hasattr(circ, "paras"):
+#         #     self._paras = circ.paras
+#         # else:
+#         #     self._paras = []
+#         #     for op in self.circuit.operations:
+#         #         self._paras.extend(op.paras)
+#
+#         if qbits:
+#             self._reallocate(qbits)
+#
+#     # @property
+#     # def paras(self):
+#     #     return self._paras
+#
+#     # @paras.setter
+#     # def paras(self, __paras):
+#     #     self._paras = __paras
+#     #     self.circuit.paras = __paras
+#
+#     def _reallocate(self, qbits):
+#         num = max(self.circuit.num - 1, max(qbits)) + 1
+#         self.pos = qbits
+#         self.circuit._reallocate(num, qbits)
+#
+#     @property
+#     def symbol(self):
+#         return "%s" % self.name
+#
+#     def add_controls(self, ctrls: List[int] = []) -> QuantumGate:
+#         return ControlCircuitWrapper("MC" + self.name, self, ctrls)
+#
+#     def power(self, n: int):
+#         self.name += "^%d" % n
+#         self.circuit = self.circuit.power(n)
+#         return self
+#
+#     def dagger(self):
+#         self.name += "^†"
+#         self.circuit = self.circuit.dagger()
+#         return self
+#
+#     def to_qasm(self):
+#         qasm = ""
+#         for operation in self.circuit.operations:
+#             qasm += operation.to_qasm() + ";\n"
+#         return qasm
+#
+#
+# class ControlCircuitWrapper(CircuitWrapper):
+#     def __init__(self, name: str, circwrp: CircuitWrapper, ctrls: List[int]):
+#         self.name = name
+#         self.ctrls = ctrls
+#         self.targs = circwrp.pos
+#         self.circuit = circwrp.circuit.add_controls(len(ctrls), ctrls, self.targs)
+#         self.pos = list(range(self.circuit.num))
+#         self._targ_name = circwrp.name
+#
+#     @property
+#     def symbol(self):
+#         return "%s" % self._targ_name
+#
+#     # def power(self, n: int):
+#     #     self._targ_name += "^%d" % n
+#     #     return super().power(n)
+#     #
+#     # def dagger(self):
+#     #     self.name += "^†"
+#     #     return super().dagger()
+#
+#     def _reallocate(self, qbits):
+#         num = max(self.circuit.num - 1, max(qbits)) + 1
+#         self.pos = qbits
+#         self.circuit._reallocate(num, qbits)
+#         qbits_map = dict(zip(range(len(qbits)), qbits))
+#         for i in range(len(self.ctrls)):
+#             self.ctrls[i] = qbits_map[self.ctrls[i]]
+#
+#         for i in range(len(self.targs)):
+#             self.targs[i] = qbits_map[self.targs[i]]

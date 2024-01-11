@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 from contextlib import contextmanager
 from typing import Any, Iterable, List, Optional
 
 import numpy as np
 import quafu.elements.element_gates as qeg
-from quafu.elements import Measure, Reset
 from quafu.elements.classical_element import Cif
 from quafu.elements.instruction import Instruction
 from quafu.elements import Measure, Reset
 from quafu.elements.parameters import ParameterType
 from quafu.elements.pulses import QuantumPulse
-from quafu.elements.quantum_gate import CircuitWrapper, ControlCircuitWrapper
+from quafu.elements.oracle import OracleGate
 from ..elements import (
     Barrier,
     ControlledGate,
@@ -74,6 +74,11 @@ class QuantumCircuit:
     def num(self):
         return sum([len(qreg) for qreg in self.qregs])
 
+    @num.setter
+    def num(self, num: int):
+        self.qregs = [QuantumRegister(num)] if num > 0 else []
+        self.cregs = [ClassicalRegister(num)] if num > 0 else []
+
     @property
     def cbits_num(self):
         return sum([len(creg) for creg in self.cregs])
@@ -111,7 +116,7 @@ class QuantumCircuit:
         if max_pos >= self.num:
             raise CircuitError("Operation act on qubit that not allocated")
         self.add_ins(operation)
-        if isinstance(operation, CircuitWrapper) or isinstance(operation, ControlCircuitWrapper):
+        if isinstance(operation, OracleGate):
             self._has_wrap = True
         return self
 
@@ -128,6 +133,15 @@ class QuantumCircuit:
         if np.any(pos >= self.num):
             raise CircuitError(f"Gate position out of range: {gate.pos}")
         self.gates.append(gate)
+
+    def add_pulse(self, pulse: QuantumPulse, pos: int = None) -> "QuantumCircuit":
+        """
+        Add quantum gate from pulse.
+        """
+        if pos is not None:
+            pulse.set_pos(pos)
+        self.add_ins(pulse)
+        return self
 
     def add_ins(self, ins: Instruction):
         """
@@ -401,6 +415,58 @@ class QuantumCircuit:
         customized = customize_gate(name, gate_structure, self.num)
         return customized
 
+    def _reallocate(self, num, qbits: List[int]):
+        """Remap the qubits and operations to new positions. """
+        assert self.num == len(qbits)
+        if max(qbits) > num:
+            raise CircuitError("Bad allocation")
+
+        self.num = num
+        qbits_map = dict(zip(range(len(qbits)), qbits))
+        operations = self.instructions
+        for op in operations:
+            for i in range(len(op.pos)):
+                op.pos[i] = qbits_map[op.pos[i]]
+
+            if isinstance(op, ControlledGate):
+                for i in range(len(op.ctrls)):
+                    op.ctrls[i] = qbits_map[op.ctrls[i]]
+
+                for i in range(len(op.targs)):
+                    op.targs[i] = qbits_map[op.targs[i]]
+
+    def add_controls(self, ctrlnum, ctrls: List[int] = None, targs: List[int] = None, inplace=False) -> "QuantumCircuit":
+        """Apend control- qubits to the circuit."""
+
+        if ctrls is None and targs is None:
+            ctrls = list(np.arange(ctrlnum) + self.num)
+            num = self.num + ctrlnum
+            operations = self.instructions
+        else:
+            if ctrls is None or targs is None:
+                raise ValueError("Must provide both ctrls and targs")
+            else:
+                assert len(targs) == self.num
+                assert len(ctrls) == ctrlnum
+                num = max(ctrls + targs) + 1
+                if inplace:
+                    self._reallocate(num, targs)
+                    operations = self.instructions
+                else:
+                    temp = copy.deepcopy(self)
+                    temp._reallocate(num, targs)
+                    operations = temp.instructions
+
+        if inplace:
+            self.instructions = [op.ctrl_by(ctrls) for op in operations]
+            return self
+        else:
+            qc = QuantumCircuit(num)
+            for op in operations:
+                qc << op.ctrl_by(ctrls)
+            return qc
+
+    # # # # # # # # # # # # # # helper functions # # # # # # # # # # # # # #
     def id(self, pos: int) -> "QuantumCircuit":
         """
         Identity gate.
@@ -941,12 +1007,3 @@ class QuantumCircuit:
                 return
             else:
                 instructions.append(self.instructions[i])
-
-    def add_pulse(self, pulse: QuantumPulse, pos: int = None) -> "QuantumCircuit":
-        """
-        Add quantum gate from pulse.
-        """
-        if pos is not None:
-            pulse.set_pos(pos)
-        self.add_ins(pulse)
-        return self

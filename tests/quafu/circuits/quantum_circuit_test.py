@@ -1,5 +1,3 @@
-import math
-
 from quafu.circuits import QuantumCircuit
 from quafu.elements.element_gates import RXGate
 from quafu.elements.parameters import Parameter
