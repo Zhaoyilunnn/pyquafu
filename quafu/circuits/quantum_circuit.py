@@ -435,36 +435,31 @@ class QuantumCircuit:
                 for i in range(len(op.targs)):
                     op.targs[i] = qbits_map[op.targs[i]]
 
-    def add_controls(self, ctrlnum, ctrls: List[int] = None, targs: List[int] = None, inplace=False) -> "QuantumCircuit":
-        """Apend control- qubits to the circuit."""
+    def add_controls(self, ctrlnum, ctrls: List[int] = None, targs: List[int] = None) -> "QuantumCircuit":
+        """Append control- qubits to the circuit.
 
+        Several last qubits appended as ctrl-qubits by default. If ctrls and targs are provided,
+        reallocated in order of ctrls + targs.
+        """
+        num = self.num + ctrlnum
+        qc = QuantumCircuit(num)
         if ctrls is None and targs is None:
-            ctrls = list(np.arange(ctrlnum) + self.num)
-            num = self.num + ctrlnum
-            operations = self.instructions
+            ctrls = list(range(self.num, self.num + ctrlnum))
+            targs = list(range(self.num))
+            do_reallocate = False
         else:
-            if ctrls is None or targs is None:
-                raise ValueError("Must provide both ctrls and targs")
-            else:
-                assert len(targs) == self.num
-                assert len(ctrls) == ctrlnum
-                num = max(ctrls + targs) + 1
-                if inplace:
-                    self._reallocate(num, targs)
-                    operations = self.instructions
-                else:
-                    temp = copy.deepcopy(self)
-                    temp._reallocate(num, targs)
-                    operations = temp.instructions
+            if not (ctrls is not None and targs is not None):
+                raise ValueError("Args ctrls and targs must provide simultaneously.")
+            assert len(targs) == self.num
+            assert len(ctrls) == ctrlnum
+            do_reallocate = True
 
-        if inplace:
-            self.instructions = [op.ctrl_by(ctrls) for op in operations]
-            return self
-        else:
-            qc = QuantumCircuit(num)
-            for op in operations:
-                qc << op.ctrl_by(ctrls)
-            return qc
+        for op in self.gates:
+            qc << op.ctrl_by(ctrls)
+
+        if do_reallocate:
+            qc._reallocate(num, ctrls + targs)
+        return qc
 
     # # # # # # # # # # # # # # helper functions # # # # # # # # # # # # # #
     def id(self, pos: int) -> "QuantumCircuit":

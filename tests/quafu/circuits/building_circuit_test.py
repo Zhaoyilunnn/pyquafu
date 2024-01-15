@@ -11,8 +11,13 @@ class TestBuildingCircuit:
         q << (qeg.XGate(2)).ctrl_by([0])
         q << qeg.RZZGate(0, 2, 0.26)
         try:
-            nq = q.add_controls(2, inplace=False)
+            nq = q.add_controls(2)
         except NotImplementedError:
             nq = q
         nq.draw_circuit()
         nq.to_openqasm()
+
+
+if __name__ == '__main__':
+    test = TestBuildingCircuit()
+    test.test_add()

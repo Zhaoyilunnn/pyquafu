@@ -34,7 +34,6 @@ __all__ = [
     "ControlledGate",
 ]
 
-
 HERMITIAN = [
     "id",
     "x",
@@ -54,7 +53,6 @@ HERMITIAN = [
 ROTATION = ["rx", "ry", "rz", "p", "rxx", "ryy", "rzz", "cp"]
 paired = {k: k + "dg" for k in ["sx", "sy", "s", "t", "sw"]}
 PAIRED = {**paired, **{v: k for k, v in paired.items()}}
-
 
 MatrixType = Union[np.ndarray, Callable]
 
@@ -81,10 +79,10 @@ class QuantumGate(Instruction, ABC):
     gate_classes = {}
 
     def __init__(
-        self,
-        pos: PosType,
-        paras: Optional[Union[ParameterType, List[ParameterType]]] = None,
-        matrix: Optional[Union[ndarray, Callable]] = None,
+            self,
+            pos: PosType,
+            paras: Optional[Union[ParameterType, List[ParameterType]]] = None,
+            matrix: Optional[Union[ndarray, Callable]] = None,
     ):
         super().__init__(pos, paras)
         self._symbol = None
@@ -149,9 +147,9 @@ class QuantumGate(Instruction, ABC):
         # TODO: Use latex repr for Parameter
         if self.paras is not None:
             symbol = (
-                "%s(" % self.name
-                + ",".join(["%.3f" % para for para in self._paras])
-                + ")"
+                    "%s(" % self.name
+                    + ",".join(["%.3f" % para for para in self._paras])
+                    + ")"
             )
             return symbol
         else:
@@ -200,18 +198,39 @@ class QuantumGate(Instruction, ABC):
     def power(self, n) -> "QuantumGate":
         """Return another gate equivalent to n-times operation of the present gate."""
         name = self.name.lower()
+        name = 'sz' if name == 's' else name
+
+        order4 = ["sx", "sy", "s", 'sw']
+        order4 += [_+'dg' for _ in order4]
+        order8 = ["t", "tdg"]
+
         if name in HERMITIAN:
             if n % 2 == 0:
                 return self.gate_classes["id"](self.pos)
             else:
                 return copy.deepcopy(self)
+        elif name in order4:  # ["sx", "sy", "s", "t", "sw"]
+            if n % 4 == 0:
+                return self.gate_classes["id"](self.pos)
+            elif n % 4 == 1:
+                return copy.deepcopy(self)
+            elif n % 4 == 2:
+                _square_name = 'z' if name == 's' else name[1:]
+                return self.gate_classes[_square_name](self.pos)
+            elif n % 4 == 3:
+                _conj_name = PAIRED[name]
+                return self.gate_classes[_conj_name](self.pos)
+        elif name in order8:  # ["t", "tdg"]
+            # note: here we transform a fixed gate into a parametric gate
+            #       which might cause error in future
+            theta = np.pi / 4
+            if name.endswith("dg"):
+                theta = -theta
+            return self.gate_classes["rz"](self.pos, theta * n)
         elif name in ROTATION:
             return self.gate_classes[name](self.pos, self.paras * n)
-        elif name in PAIRED:
-            # TODO: decide order-2/4 gate
-            raise NotImplementedError
         else:
-            from ..elements import OracleGate
+            from .oracle import OracleGate
 
             if not isinstance(self, OracleGate):
                 raise NotImplementedError(
@@ -230,9 +249,9 @@ class QuantumGate(Instruction, ABC):
             return self.gate_classes[name](self.pos, -self.paras)
         elif name in PAIRED:  # pairwise-occurrence gate
             _conj_name = PAIRED[name]
-            return self.gate_classes[name](self.pos)
+            return self.gate_classes[_conj_name](self.pos)
         else:
-            from ..elements import OracleGate
+            from .oracle import OracleGate
 
             if not isinstance(self, OracleGate):
                 raise NotImplementedError(
@@ -245,27 +264,44 @@ class QuantumGate(Instruction, ABC):
 
     def ctrl_by(self, ctrls: Union[int, List[int]]) -> "QuantumGate":
         """Return a controlled gate with present gate as the controlled target."""
-        if isinstance(ctrls, int):
-            ctrls = [ctrls]
-
-        pos = [self.pos] if isinstance(self.pos, int) else self.pos
-        if set(ctrls) & set(pos):
-            raise ValueError("Control qubits should not be overlap with target qubits.")
+        ctrls = [ctrls] if not isinstance(ctrls, list) else ctrls
+        pos = [self.pos] if not isinstance(self.pos, list) else self.pos
+        name = self.name.lower()
 
         if isinstance(self, ControlledGate):
-            # TODO: [m1]control-([m2]control-U) = [m1+m2]control-U
-            raise NotImplementedError
+            """
+            [m1]control-([m2]control-U) = [m1+m2]control-U
+            """
+            ctrls = list(set(self.ctrls) | set(ctrls))
+        elif set(ctrls) & set(pos):
+            raise ValueError("Control qubits should not be overlap with target qubits.")
 
-        name = self.name.lower()
-        if name in ["x", "y", "z"]:
+        if len(ctrls) == 1 and len(pos) == 1:  # ctrl-single-qubit gate
+            cname = "c" + name
+            if cname not in self.gate_classes:
+                raise NotImplementedError(
+                    f"ctrl-by is not implemented for {self.__class__.__name__}"
+                )
+            else:
+                cop = self.gate_classes[cname](ctrls[0], pos[0])
+        elif name in ["mcx", "mcy", "mcz"]:
+            cname = name
+            cop = self.gate_classes[cname](ctrls, self.pos)
+        elif name in ["x", "y", "z"]:
             cname = "mc" + self.name.lower()
             cop = self.gate_classes[cname](ctrls, self.pos)
-            return cop
         else:
-            # TODO: make ControlledGate actual instead of abstract class,
-            #       use class method to generate controlled gate from target gate object
-            raise NotImplementedError
-            # return ControlledU("C" + self.name, ctrls, self)
+            from .oracle import OracleGate
+
+            if not isinstance(self, OracleGate):
+                raise NotImplementedError(
+                    f"ctrl-by is not implemented for {self.__class__.__name__}"
+                )
+            else:
+                cop = copy.deepcopy(self)
+                cop.insides = [gate.dagger() for gate in self.gate_structure]
+
+        return cop
 
 
 # Gate types below are statically implemented to support type identification
@@ -332,12 +368,12 @@ class ControlledGate(MultiQubitGate):
     """Controlled gate class, where the matrix act non-trivially on target qubits"""
 
     def __init__(
-        self,
-        targ_name: str,
-        ctrls: PosType,
-        targs: PosType,
-        paras: Optional[Union[ParameterType, List[ParameterType]]] = None,
-        tar_matrix: MatrixType = None,
+            self,
+            targ_name: str,
+            ctrls: PosType,
+            targs: PosType,
+            paras: Optional[Union[ParameterType, List[ParameterType]]] = None,
+            tar_matrix: MatrixType = None,
     ):
         MultiQubitGate.__init__(self, ctrls + targs, paras)
         self.ctrls = ctrls
@@ -413,7 +449,6 @@ class ControlledGate(MultiQubitGate):
     @classmethod
     def from_target(cls, targ: QuantumGate, ctrls: PosType):
         return cls(targ.name, ctrls, targ.pos, targ.paras, targ.matrix)
-
 
 # TODO(ChenWei): update OracleGate so that compatible with CtrlGate
 # class CircuitWrapper(QuantumGate):

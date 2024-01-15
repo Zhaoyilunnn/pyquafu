@@ -21,7 +21,6 @@ from quafu.synthesis.evolution import ProductFormula
 
 from .hamiltonian import Hamiltonian
 from .interface_provider import InterfaceProvider
-from .templates import AngleEmbedding
 
 
 class Ansatz(QuantumCircuit, ABC):
