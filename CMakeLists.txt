@@ -29,10 +29,12 @@ set ( PRJ_INCLUDE_DIRS )
 
 # openmp
 if (${CMAKE_HOST_SYSTEM_NAME} MATCHES Darwin)
+    message(STATUS "On OSX, try to find OpenMP")
     execute_process(COMMAND brew install libomp)
     include(FindPkgConfig)
     pkg_check_modules(OpenMP REQUIRED IMPORTED_TARGET libomp)
     if (OpenMP_FOUND)
+        message(STATUS "OpenMP Found")
         list ( APPEND PRJ_LIBRARIES ${OpenMP_LIBRARIES} )
 	    list ( APPEND PRJ_INCLUDE_DIRS ${OpenMP_INCLUDE_DIRS} )
     endif()
