@@ -127,6 +127,23 @@ class TestParser:
             qasm_to_quafu(token)
 
     # ----------------------------------------
+    #   test for pulse
+    # ----------------------------------------
+    def test_pulse(self):
+        amp = random.random()
+        freq = random.random()
+        phase = random.random()
+        duration = random.random()
+        qasm = f"""
+        qreg q[1]; pulse gaussian({amp}, {freq}, {phase}, {duration}) q[0];
+        """
+        cir = qasm_to_quafu(openqasm=qasm)
+        assert cir.instructions[0].name == "gaussian"
+        paras = [amp, freq, phase]
+        for i in range(len(cir.instructions[0].paras)):
+            assert math.isclose(cir.instructions[0].paras[i], paras[i])
+
+    # ----------------------------------------
     #   test for expression
     # ----------------------------------------
     def test_exp_unary(self):

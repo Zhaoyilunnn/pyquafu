@@ -46,7 +46,7 @@ class QuantumPulse(Instruction, ABC):
             duration (float, int): Pulse duration.
             unit (str): Duration unit.
         """
-        super().__init__()  # pylint: disable=no-value-for-parameter
+        super().__init__([pos], paras)  # pylint: disable=no-value-for-parameter
         self.pos = pos
         self.paras = paras
         self.duration = duration
@@ -80,6 +80,14 @@ class QuantumPulse(Instruction, ABC):
             raise ValueError(f"Name {name} already exists.")
         cls.pulse_classes[name] = subclass
         Instruction.register_ins(subclass, name)
+
+    @property
+    def named_paras(self) -> Dict:
+        return {}
+
+    @property
+    def named_pos(self) -> Dict:
+        return {}
 
     def __repr__(self):
         return self.__str__()

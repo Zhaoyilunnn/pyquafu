@@ -13,6 +13,7 @@
 # limitations under the License.
 """QFASM Utilities Module."""
 import quafu.elements.element_gates as qeg
+from quafu.elements.pulses import FlattopPulse, GaussianPulse, RectPulse
 
 from ..elements import Barrier, Delay, Measure, XYResonance
 
@@ -72,6 +73,18 @@ class IndexedId(Node):
 
 # pylint: disable=too-few-public-methods
 class GateInstruction:
+    def __init__(self, node, qargs, cargs=None, cbits=None):
+        super().__init__()
+        self.name = node.name
+        self.lineno = node.lineno
+        self.filename = node.filename
+        self.qargs = qargs
+        self.cargs = cargs
+        self.cbits = cbits
+
+
+# pylint: disable=too-few-public-methods
+class PulseInstruction:
     def __init__(self, node, qargs, cargs=None, cbits=None):
         super().__init__()
         self.name = node.name
@@ -165,3 +178,5 @@ gate_classes = {
     "measure": Measure,
     "xy": XYResonance,
 }
+
+pulse_classes = {"rect": RectPulse, "gaussian": GaussianPulse, "flattop": FlattopPulse}

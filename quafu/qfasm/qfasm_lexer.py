@@ -72,6 +72,7 @@ class QfasmLexer:
         "opaque": "OPAQUE",
         "reset": "RESET",
         "if": "IF",
+        "pulse": "PULSE",
     }
 
     tokens = [
@@ -176,7 +177,7 @@ class QfasmLexer:
     def t_ID(self, t):
         r"[a-z][a-zA-Z0-9_]*"
         t.type = self.reserved.get(t.value, "ID")
-        # all the reset | barrier | gate | include  | measure | opaque
+        # all the reset | barrier | gate | include  | measure | opaque | pulse
         t.value = Id(t.value, self.lexer.lineno, self.lexer.filename)
         return t
 

@@ -31,9 +31,11 @@ from .qfasm_utils import (
     IfInstruction,
     IndexedId,
     Node,
+    PulseInstruction,
     SymtabNode,
     UnaryExpr,
     gate_classes,
+    pulse_classes,
 )
 
 unaryop = {
@@ -70,6 +72,7 @@ reserved = [
     "reset",
     "if",
     "OPENQASM",
+    "pulse",
 ]
 
 
@@ -90,6 +93,7 @@ class QfasmParser:
         self.stdgate = list(gate_classes.keys())
         # extent keyword(the )
         self.stdgate.extend(["U", "CX"])
+        self.stdpulse = list(pulse_classes.keys())
         self.mulctrl = ["mcx", "mcz", "mcy"]
         self.parser = yacc.yacc(module=self, debug=debug)
         # when there is reset/op after measure/if, set to false
@@ -167,6 +171,50 @@ class QfasmParser:
             self.global_symtab[symtabnode.name] = symtabnode
         else:
             self.symtab[symtabnode.name] = symtabnode
+
+    # pylint: disable=too-many-branches, too-many-statements
+    def handle_pulseins(self, pulse_ins: PulseInstruction):
+
+        pulse_list = []
+
+        if pulse_ins.name in self.stdpulse:
+            args = []
+            for qarg in pulse_ins.qargs:
+                if isinstance(qarg, IndexedId):
+                    # check qreg's num is the same
+                    if len(args) >= 1 and len(args[0]) != 1:
+                        raise ParserError(
+                            f"The num of qreg's qubit is inconsistent at line{pulse_ins.lineno}"
+                            f" file{pulse_ins.filename}."
+                        )
+                    symnode = self.global_symtab[qarg.name]
+                    args.append([symnode.start + qarg.num])
+                elif isinstance(qarg, Id):
+                    # check qreg's num is the same
+                    symnode = self.global_symtab[qarg.name]
+                    if len(args) >= 1 and symnode.num != len(args[0]):
+                        raise ParserError(
+                            f"The num of qreg's qubit is inconsistent at line{pulse_ins.lineno}"
+                            f" file{pulse_ins.filename}."
+                        )
+                    tempargs = []
+                    for i in range(symnode.num):
+                        tempargs.append(symnode.start + i)
+                    args.append(tempargs)
+            # change carg to parameter
+            for i, carg in enumerate(pulse_ins.cargs):
+                pulse_ins.cargs[i] = self.compute_exp(carg)
+            # call many times
+            for i in range(len(args[0])):
+                oneargs = []
+                for arg in args:
+                    oneargs.append(arg[i])
+                # add carg to args if there is
+                if pulse_ins.cargs is not None and len(pulse_ins.cargs) > 0:
+                    oneargs.extend(pulse_ins.cargs)
+                pulse_list.append(pulse_classes[pulse_ins.name](*[*oneargs, "ns", "XY"]))
+
+        return pulse_list
 
     # pylint: disable=too-many-branches, too-many-statements
     def handle_gateins(self, gateins: GateInstruction):
@@ -346,6 +394,10 @@ class QfasmParser:
             # get quantum gate
             gate_list = self.handle_gateins(ins.instruction)
             qc.add_ins(Cif(cbits=cbits, condition=ins.value, instructions=gate_list))
+        elif isinstance(ins, PulseInstruction):
+            pulse_list = self.handle_pulseins(ins)
+            for pulse in pulse_list:
+                qc.add_ins(pulse)
         else:
             raise ParserError("Unexpected exception when parse.")
 
@@ -395,6 +447,39 @@ class QfasmParser:
         if cbit_num != qbit_num:
             raise ParserError(
                 f"MEASURE: the num of qubit and clbit doesn't match at line {gateins.lineno} file {gateins.filename}"
+            )
+
+    def check_pulse_qargs(self, pulse_ins: PulseInstruction):
+
+        # TODO: check pulse name defined
+
+        qargslist = []
+        # check qubits must from global symtab
+        for qarg in pulse_ins.qargs:
+            if qarg.name not in self.global_symtab:
+                raise ParserError(
+                    f"The qubit {qarg.name} is undefined in qubit register at line {qarg.lineno} file {qarg.filename}"
+                )
+            symnode = self.global_symtab[qarg.name]
+            if symnode.type != "QREG":
+                raise ParserError(
+                    f"{qarg.name} is not declared as qubit register at line {qarg.lineno} file {qarg.filename}"
+                )
+            # check if the qarg is out of bounds when qarg's type is indexed_id
+            if isinstance(qarg, IndexedId):
+                if qarg.num + 1 > symnode.num:
+                    raise ParserError(
+                        f"Qubit arrays {qarg.name} are out of bounds at line {qarg.lineno} file {qarg.filename}"
+                    )
+                qargslist.append((qarg.name, qarg.num))
+            else:
+                for num in range(symnode.num):
+                    qargslist.append((qarg.name, num))
+        # check  distinct qubits
+        if len(qargslist) != len(set(qargslist)):
+            raise ParserError(
+                f"Qubit used as different argument when call pulse {pulse_ins.name} "
+                f"at line {pulse_ins.lineno} file {pulse_ins.filename}"
             )
 
     def check_qargs(self, gateins: GateInstruction):
@@ -478,6 +563,14 @@ class QfasmParser:
                     f"The number of classical argument declared in gate {gateins.name} is "
                     f"inconsistent with instruction at line {gateins.lineno} file {gateins.filename}"
                 )
+
+    def check_pulse_cargs(self, pulse_ins: PulseInstruction):
+        # check that cargs belongs to unary (they must be int or float or parameter)
+        # cargs is different from CREG
+        # TODO: check pulse name is defined
+        # check every carg in [int, float, parameter]
+        for carg in pulse_ins.cargs:
+            self.check_param(carg)
 
     def check_gate_qargs(self, gateins: GateInstruction):
         # check type and number
@@ -683,6 +776,23 @@ class QfasmParser:
             else:
                 p[0] = IfInstruction(node=p[1], cbits=p[3], value=p[5], instruction=p[7])
         self.executable_on_backend = False
+
+    def p_pulseop(self, p):
+        """
+        qop : PULSE id '(' expression_list ')' primary_list
+                | PULSE id '(' error
+                | PULSE id '(' ')' error
+                | PULSE id '(' expression_list error
+                | PULSE id '(' expression_list ')' error
+        """
+        if len(p) != 7:
+            raise ParserError(
+                f"Expecting qubit list, received {p[len(p) - 1].value} at line {p[1].lineno} file {p[1].filename}"
+            )
+
+        p[0] = PulseInstruction(node=p[2], qargs=p[6], cargs=p[4])
+        self.check_pulse_qargs(p[0])
+        self.check_pulse_cargs(p[0])
 
     def p_unitaryop(self, p):
         """
