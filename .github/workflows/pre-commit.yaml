@@ -15,6 +15,6 @@ jobs:
                 python-version: 3.x
         -   uses: pre-commit/action@v3.0.1
         -   uses: actions/cache@v3
-        with:
-            path: ~/.cache/pre-commit/
-            key: pre-commit-4|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+            with:
+                path: ~/.cache/pre-commit/
+                key: pre-commit-4|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
