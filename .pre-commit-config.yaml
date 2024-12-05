@@ -19,7 +19,7 @@ repos:
     -   id: requirements-txt-fixer
     -   id: sort-simple-yaml
 
--   repo: https://gitee.com/mirrors_PyCQA/pylint
+-   repo: https://github.com/pylint-dev/pylint
     rev: v3.3.1
     hooks:
     -   id: pylint
