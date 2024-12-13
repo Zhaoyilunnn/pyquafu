@@ -46,9 +46,10 @@ class ExecResult(Result):
             3: "Canceled",
             4: "Failed",
             5: "Pending",
+            "finished": "Completed",
         }
         self.taskid = input_dict["task_id"]
-        self.taskname = input_dict["task_name"]
+        self.taskname = input_dict["task_name"] if "task_name" in input_dict else ""
         self.transpiled_openqasm = input_dict["openqasm"]
         from ..circuits.quantum_circuit import (  # pylint: disable=import-outside-toplevel
             QuantumCircuit,
