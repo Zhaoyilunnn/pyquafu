@@ -76,12 +76,13 @@ class Task:
             tomo:  Whether to do tomography (Not support yet)
             priority: Task priority.
         """
-        if backend not in self._available_backends.keys():
-            raise UserError(
-                f"backend {backend} is not valid, available backends are {', '.join(self._available_backends.keys())}"
-            )
+        if self.user.backend_type == "quafu":
+            if backend not in self._available_backends.keys():
+                raise UserError(
+                    f"backend {backend} is not valid, available backends are {', '.join(self._available_backends.keys())}"
+                )
 
-        self.backend = self._available_backends[backend]
+            self.backend = self._available_backends[backend]
         self.shots = shots
         self.tomo = tomo
         self.compile = compile
