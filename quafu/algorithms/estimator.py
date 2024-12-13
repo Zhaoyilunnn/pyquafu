@@ -37,17 +37,26 @@ def execute_circuit(circ: QuantumCircuit, observables: Hamiltonian):
 class Estimator:
     """Estimate expectation for quantum circuits and observables"""
 
-    def __init__(self, circ: QuantumCircuit, backend: str = "sim", task: Optional[Task] = None, **task_options) -> None:
+    def __init__(
+        self,
+        circ: QuantumCircuit,
+        backend: str = "sim",
+        sync: bool = False,
+        task: Optional[Task] = None,
+        **task_options,
+    ) -> None:
         """
         Args:
             circ: quantum circuit.
             backend: run on simulator (sim) or real machines (ScQ-PXX)
+            sync: specify whether to send tasks to real machines synchronously
             task: task instance for real machine execution (should be none if backend is "sim")
             task_options: options to config a task instance
         """
         self._circ = circ
         self._circ.get_parameter_grads()  # parameter shift currently requires calling this for initialization
         self._backend = backend
+        self._sync = sync
         self._task = None
         if backend != "sim":
             if task is not None:
@@ -113,16 +122,22 @@ class Estimator:
             for measure_base in measure_basis:
                 res = self._measure_obs(self._circ, measure_base=measure_base)
                 self._circ.gates = copy.deepcopy(inputs)
-                lst_task_id.append(res.taskid)
+                if self._sync:
+                    # directly add res to exec_res
+                    exec_res.append(res)
+                else:
+                    # record task id and retrieve later
+                    lst_task_id.append(res.taskid)
 
-            for tid in lst_task_id:
-                # retrieve task results
-                while True:
-                    res = self._task.retrieve(tid)
-                    if res.task_status == "Completed":
-                        exec_res.append(res)
-                        break
-                    time.sleep(0.2)
+            if not self._sync:
+                for tid in lst_task_id:
+                    # retrieve task results
+                    while True:
+                        res = self._task.retrieve(tid)
+                        if res.task_status == "Completed":
+                            exec_res.append(res)
+                            break
+                        time.sleep(0.2)
 
             if cache_key is not None:
                 # put into cache
@@ -156,7 +171,7 @@ class Estimator:
                 elif base == "Y":
                     qc.rx(pos, np.pi / 2)
 
-            res = self._task.send(qc)
+            res = self._task.send(qc, wait=self._sync)
             res.measure_base = measure_base
 
         return res

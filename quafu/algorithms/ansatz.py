@@ -145,7 +145,7 @@ class QuantumNeuralNetwork(Ansatz):
     """A Wrapper of quantum circuit as QNN"""
 
     # TODO(zhaoyilun): docs
-    def __init__(self, num_qubits: int, layers: List[Any], interface="torch", backend="sim"):
+    def __init__(self, num_qubits: int, layers: List[Any], interface="torch", backend="sim", sync: bool = False):
         """"""
         # Get transformer according to specified interface
         self._transformer = InterfaceProvider.get(interface)
@@ -154,6 +154,7 @@ class QuantumNeuralNetwork(Ansatz):
         self._weights = None
 
         self._backend = backend
+        self._sync = sync
         super().__init__(num_qubits)
 
     def __call__(self, inputs):
@@ -161,7 +162,7 @@ class QuantumNeuralNetwork(Ansatz):
         # pylint: disable=import-outside-toplevel
         from quafu.algorithms.estimator import Estimator
 
-        estimator = Estimator(self, backend=self._backend)
+        estimator = Estimator(self, backend=self._backend, sync=self._sync)
         return self._transformer.execute(self, inputs, estimator=estimator)
 
     def _build(self):

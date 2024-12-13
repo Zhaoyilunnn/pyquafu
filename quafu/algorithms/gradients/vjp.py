@@ -36,6 +36,7 @@ def run_circ(
     circ: QuantumCircuit,
     params: Optional[List[float]] = None,
     backend: str = "sim",
+    sync: bool = False,
     estimator: Optional[Estimator] = None,
 ):
     """Execute a circuit
@@ -44,11 +45,12 @@ def run_circ(
         circ (QuantumCircuit): circ
         params (Optional[List[float]]): params
         backend (str): backend
+        sync (bool): specify whether to submit tasks synchronously when using real machines
         estimator (Optional[Estimator]): estimator
     """
     obs_list = _generate_expval_z(circ.num)
     if estimator is None:
-        estimator = Estimator(circ, backend=backend)
+        estimator = Estimator(circ, backend=backend, sync=sync)
     if params is None:
         params = [g.paras for g in circ.parameterized_gates]
     output = [estimator.run(obs, params, cache_key="00") for obs in obs_list]
