@@ -110,7 +110,7 @@ class Estimator:
                     raise CircuitError(f"Qubit {p} in observer {obs[0]} is not measured.")
 
         measure_basis, targlist = merge_measure(obslist)
-        print("Job start, need measured in ", measure_basis)
+        # print("Job start, need measured in ", measure_basis)
 
         exec_res = []
         if cache_key is not None and cache_key in self._exp_cache:

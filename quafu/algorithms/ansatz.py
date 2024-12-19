@@ -162,7 +162,7 @@ class QuantumNeuralNetwork(Ansatz):
         # pylint: disable=import-outside-toplevel
         from quafu.algorithms.estimator import Estimator
 
-        estimator = Estimator(self, backend=self._backend, sync=self._sync)
+        estimator = Estimator(self, backend=self._backend, sync=self._sync, compile=False)
         return self._transformer.execute(self, inputs, estimator=estimator)
 
     def _build(self):

@@ -194,6 +194,7 @@ class Task:
             "task_id": "test",
         }
 
+        print("Sending a task directly to control system ...")
         headers = {"Content-Type": "application/json"}
         url = User.url + User.exec_api
         return ClientWrapper.post(url, headers=headers, json=data)
@@ -252,6 +253,7 @@ class Task:
         }
         data = parse.urlencode(data)
         data = data.replace("%27", "'")
+        print("Sending a task to cloud platform  ...")
         response = ClientWrapper.post(url, headers=headers, data=data)
 
         # TODO: completing status code checks
