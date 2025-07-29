@@ -2,29 +2,22 @@
 
 ## Overview
 
-This document outlines the design of the `qec` (Quantum Error Correction) module for the `pyquafu` library. The primary goal of this module is to provide a flexible and extensible framework for building, simulating, and analyzing the performance of quantum error correction codes under various noise models.
+This document explains how the `qec` (Quantum Error Correction) module works in the `pyquafu` library. The main goal is to give users a way to build, test, and study quantum error correction codes. These codes help protect quantum information from noise. The module lets users try different codes and see how they perform when there is noise.
 
 ## Module Structure
 
-The `qec` module is organized into two main submodules, `codes` and `decoders`, with foundational abstract classes defined in `base.py`.
+The `qec` module has two main parts. One part is for quantum error correction codes. The other part is for decoders. There is also a file with base classes that set the rules for how codes and decoders should work.
 
-* **`quafu.qec.codes`**: This submodule will contain implementations of various quantum error correction codes. The design is intended to be general, starting with support for qLDPC codes and surface codes.
-* **`quafu.qec.decoders`**: This submodule will house different decoding algorithms. These decoders will process syndrome information to infer the most likely errors that have occurred.
-* **`quafu.qec.base`**: This file defines the abstract base classes for codes and decoders, ensuring a consistent API and promoting extensibility for future contributions.
+The `quafu.qec.codes` part holds different quantum error correction codes. The first codes to be included are qLDPC codes and surface codes. The `quafu.qec.decoders` part has different ways to decode errors. Decoders use syndrome data to guess what errors happened. The `quafu.qec.base` file has base classes for codes and decoders. These base classes make sure that all codes and decoders use the same kind of interface. This makes it easier to add new codes or decoders later.
 
 ## Noise Model
 
-A crucial component for evaluating QEC codes is a realistic noise model. We will implement a `noise_model.py` module within the `qec` directory.
+A noise model is important when testing quantum error correction codes. The `qec` module will have a `noise_model.py` file. This file will let users add noise to their tests. The design of this noise model is based on the circuit-level noise model from [Stim](https://github.com/quantumlib/Stim/blob/main/doc/getting_started.ipynb). In this model, noise is added to all data qubits at certain points in the circuit. For example, a depolarizing channel can be added to all data qubits before each round of syndrome measurements, e.g., `before_round_data_depolarization`.
 
-The design of this noise model is inspired by Stim's circuit-level noise model (see [Stim's getting started guide](https://github.com/quantumlib/Stim/blob/main/doc/getting_started.ipynb)). The core idea is to apply noise channels to all data qubits at specific stages of the quantum circuit's execution. For example, a `before_round_data_depolarization` channel could be applied to all data qubits before each round of syndrome measurements.
-
-To implement the noise channels, we will reuse the existing classes available in `quafu.elements.noise`, such as `Depolarizing`, `BitFlip`, and `Dephasing`.
+The noise channels use classes from `quafu.elements.noise`. Some of these classes are `Depolarizing`, `BitFlip`, and `Dephasing`. These classes help users add different types of noise to their tests.
 
 ## Open Questions and Future Work
 
-There are several areas that require further research and development:
+Some problems still need to be solved. One problem is how to map qLDPC codes to physical layouts. The [`qLDPC`](https://github.com/oscarhiggott/PyMatching) library can help build qLDPC codes. But it is not clear how to map the check matrices ($C_X$ and $C_Z$) to real qubit positions on a 2D grid. This mapping is important for surface codes.
 
-1. **Mapping qLDPC Codes to Physical Layouts**: We plan to leverage the [`qLDPC`](https://github.com/oscarhiggott/PyMatching) library for the construction of general qLDPC codes. A key challenge is to establish a clear and systematic mapping from the abstract check matrices ($C_X$ and $C_Z$) of a given code to the physical qubit coordinates on a 2D grid, which is particularly important for implementing surface codes.
-
-2. **Generating Matching Graphs for Decoders**: For integration with powerful decoders like [`PyMatching`](https://github.com/oscarhiggott/PyMatching), it is necessary to construct a matching graph with appropriate edge weights that reflect the error probabilities. It is currently an open question how to systematically generate this weighted graph from a given circuit structure and our defined circuit-level noise model.
-
+Another problem is how to make matching graphs for decoders. Decoders like [`PyMatching`](https://github.com/oscarhiggott/PyMatching) need a matching graph with edge weights. These weights should show how likely different errors are. It is not clear how to make this graph from a given circuit and the noise model. This is something that needs more work.
