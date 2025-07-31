@@ -17,12 +17,12 @@ The `quafu.qec.base` file has base classes for codes and decoders. These base cl
 
 A noise model is important when testing quantum error correction codes. The `qec` module will have a `noise_model.py` file. This file will let users add noise to their tests. The design of this noise model is based on the circuit-level noise model from [Stim](https://github.com/quantumlib/Stim/blob/main/doc/getting_started.ipynb). In this model, noise is added to all data qubits at certain points in the circuit. For example, a depolarizing channel can be added to all data qubits before each round of syndrome measurements, e.g., `before_round_data_depolarization`.
 
-The noise channels use classes from `quafu.elements.noise`. Some of these classes are `Depolarizing`, `BitFlip`, and `Dephasing`. These classes help users add different types of noise to their tests.
+The noise model can be built using [`quafu.elements.noise`](https://github.com/ScQ-Cloud/pyquafu/blob/71bfd313a02279e1cccd2f9c9d76f120188852be/quafu/elements/noise.py#L26). Some of these classes are `Depolarizing`, `BitFlip`, and `Dephasing`.
 
 ## Open Questions and Future Work
 
 Some problems still need to be solved.
 
-1. How to map qLDPC codes to physical layouts. The [`qLDPC`](https://github.com/oscarhiggott/PyMatching) library can help build qLDPC codes. But it is not clear how to map the check matrices ($C_X$ and $C_Z$) to real qubit positions on a 2D grid. This mapping is important for surface codes.
+1. ~~How to map qLDPC codes to physical layouts. The [`qLDPC`](https://github.com/oscarhiggott/PyMatching) library can help build qLDPC codes. But it is not clear how to map the check matrices ($C_X$ and $C_Z$) to real qubit positions on a 2D grid. This mapping is important for surface codes.~~
 
 2. How to make matching graphs for decoders. Decoders like [`PyMatching`](https://github.com/oscarhiggott/PyMatching) need a matching graph with edge weights. These weights should show how likely different errors are. It is not clear how to make this graph from a given circuit and the noise model. This is something that needs more work.
