@@ -71,7 +71,7 @@ class QuantumCircuit:
         cnum = self.num if cnum is None else cnum
         self.cregs = [ClassicalRegister(cnum)] if cnum > 0 else []
         self._gates = []
-        self.instructions = []
+        self.instructions: List[Instruction] = []
         self.openqasm = ""
         self.circuit = []
         self._measures = []
