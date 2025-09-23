@@ -7,7 +7,7 @@ name = "pyquafu"
 version = "0.5.0"
 description = "Python toolkit for Quafu-Cloud"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "Apache-2.0" }
 authors = [{ name = "ssli", email = "ssli@iphy.ac.cn" }]
 urls = { Homepage = "https://github.com/ScQ-Cloud/pyquafu" }
@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pre-commit"]
+dev = ["pytest", "pre-commit", "notebook"]
 
 [tool.scikit-build]
 wheel.install-dir = "quafu/simulators"
