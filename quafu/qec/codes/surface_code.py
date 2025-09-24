@@ -16,94 +16,33 @@ class PlaquetteType(enum.Enum):
     and left/right-boundary is Z-type.
     """
 
+    # 0---1
+    # |   |
+    # 3---4
     weight_four = 1
+
+    # 6---7
+    #   X
     weight_two_top = 2
+
+    #   X
+    # 1---2
     weight_two_bottom = 3
+
+    #    0
+    # Z  |
+    #    3
     weight_two_left = 4
+
+    # 5
+    # | Z
+    # 8
     weight_two_right = 5
 
 
 class Basis(enum.Enum):
     X = "X"
     Z = "Z"
-
-
-def _get_data_qubits_in_touch_order(
-    start_idx: int, d: int, basis: Basis, plaquette_type: PlaquetteType
-) -> list[Any]:
-    """
-    Args:
-        start_idx (int): The index of the top-left data qubit of the stabilizer.
-            For weight-4 plaquettes this is the top-left qubit of the 2x2 block.
-            For weight-2 plaquettes, this is the index of the left or top qubit.
-        d (int): The distance of the surface code.
-        basis (Basis): Basis.X or Basis.Z, indicating the type of stabilizer.
-        plaquatte_type (PlaquetteType): The type of the plaquette.
-
-    Returns:
-        list[int]: The indices of the data qubits in the order they are touched by the
-                   ancilla qubit.
-    """
-    if plaquette_type == PlaquetteType.weight_four:
-        if basis == Basis.X:
-            return [
-                start_idx,
-                start_idx + 1,
-                start_idx + d,
-                start_idx + d + 1,
-            ]
-        elif basis == Basis.Z:
-            return [
-                start_idx,
-                start_idx + d,
-                start_idx + 1,
-                start_idx + d + 1,
-            ]
-    # Else: weight-2 plaquettes
-    # Now we assume the top/bottom-boundary is X-type
-    # and left/right-boundary is Z-type.
-    else:
-        if plaquette_type == PlaquetteType.weight_two_top:
-            return [start_idx, start_idx + 1, None, None]
-        elif plaquette_type == PlaquetteType.weight_two_bottom:
-            return [None, None, start_idx, start_idx + 1]
-        elif plaquette_type == PlaquetteType.weight_two_left:
-            return [None, None, start_idx, start_idx + d]
-        elif plaquette_type == PlaquetteType.weight_two_right:
-            return [start_idx, start_idx + d, None, None]
-
-
-def _get_start_qubit_idx_weight_two(
-    plaquette_idx: int, plaquette_type: PlaquetteType, d: int
-) -> int:
-    """
-    Get the index of the top or left data qubit of a weight-2 plaquette.
-    """
-    assert 0 <= plaquette_idx < (d - 1) // 2
-    assert plaquette_type is not PlaquetteType.weight_four
-    if plaquette_type == PlaquetteType.weight_two_left:
-        return plaquette_idx * 2 * d
-    elif plaquette_type == PlaquetteType.weight_two_right:
-        return plaquette_idx * 2 * d + (2 * d - 1)
-    elif plaquette_type == PlaquetteType.weight_two_top:
-        return d * (d - 1) + plaquette_idx * 2
-    elif plaquette_type == PlaquetteType.weight_two_bottom:
-        return 1 + plaquette_idx * 2
-
-
-def _get_start_qubit_idx_weight_four(plaquette_idx: int, d: int, basis: Basis) -> int:
-    """
-    Get the index of the top-left data qubit of a weight-4 plaquette.
-    """
-    assert 0 <= plaquette_idx < (d - 1) ** 2 // 2
-    plaquettes_per_row = (d - 1) // 2
-    row_id = plaquette_idx // plaquettes_per_row
-    col_id = plaquette_idx % plaquettes_per_row
-    parity = row_id % 2
-    if basis == Basis.X:
-        return (d * row_id) + col_id * 2 + parity
-    elif basis == Basis.Z:
-        return (d * row_id) + col_id * 2 + (1 - parity)
 
 
 @dataclass
@@ -140,6 +79,37 @@ class Plaquette:
 
 
 class SurfaceCode:
+    """
+    This is a temporary implementation of the surface code,
+    it only supports scaling with the odd distance d >= 3 and
+    only implements a single-logical-qubit memory experiment.
+
+    The layout is as assumed to be like:
+
+
+        d = 3:
+                      X
+                0---1---2
+             Z  |   |   |
+                3---4---5
+                |   |   | Z
+                6---7---8
+                  X
+
+        d = 5:
+                    X       X
+              0---1---2---3---4
+           Z  |   |   |   |   |
+              5---6---7---8---9
+              |   |   |   |   | Z
+              10--11--12--13--14
+           Z  |   |   |   |   |
+              15--16--17--18--19
+              |   |   |   |   | Z
+              20--21--22--23--24
+                X       X
+    """
+
     def __init__(self, d: int):
         """
         Initialize the SurfaceCode object.
@@ -235,3 +205,81 @@ class SurfaceCode:
         qc.measure(data_idxes, data_idxes)
 
         return qc
+
+
+def _get_data_qubits_in_touch_order(
+    start_idx: int, d: int, basis: Basis, plaquette_type: PlaquetteType
+) -> list[Any]:
+    """
+    Args:
+        start_idx (int): The index of the top-left data qubit of the stabilizer.
+            For weight-4 plaquettes this is the top-left qubit of the 2x2 block.
+            For weight-2 plaquettes, this is the index of the left or top qubit.
+        d (int): The distance of the surface code.
+        basis (Basis): Basis.X or Basis.Z, indicating the type of stabilizer.
+        plaquatte_type (PlaquetteType): The type of the plaquette.
+
+    Returns:
+        list[int]: The indices of the data qubits in the order they are touched by the
+                   ancilla qubit.
+    """
+    if plaquette_type == PlaquetteType.weight_four:
+        if basis == Basis.X:
+            return [
+                start_idx,
+                start_idx + 1,
+                start_idx + d,
+                start_idx + d + 1,
+            ]
+        elif basis == Basis.Z:
+            return [
+                start_idx,
+                start_idx + d,
+                start_idx + 1,
+                start_idx + d + 1,
+            ]
+    # Else: weight-2 plaquettes
+    # Now we assume the top/bottom-boundary is X-type
+    # and left/right-boundary is Z-type.
+    else:
+        if plaquette_type == PlaquetteType.weight_two_top:
+            return [start_idx, start_idx + 1, None, None]
+        elif plaquette_type == PlaquetteType.weight_two_bottom:
+            return [None, None, start_idx, start_idx + 1]
+        elif plaquette_type == PlaquetteType.weight_two_left:
+            return [None, None, start_idx, start_idx + d]
+        elif plaquette_type == PlaquetteType.weight_two_right:
+            return [start_idx, start_idx + d, None, None]
+
+
+def _get_start_qubit_idx_weight_two(
+    plaquette_idx: int, plaquette_type: PlaquetteType, d: int
+) -> int:
+    """
+    Get the index of the top or left data qubit of a weight-2 plaquette.
+    """
+    assert 0 <= plaquette_idx < (d - 1) // 2
+    assert plaquette_type is not PlaquetteType.weight_four
+    if plaquette_type == PlaquetteType.weight_two_left:
+        return plaquette_idx * 2 * d
+    elif plaquette_type == PlaquetteType.weight_two_right:
+        return plaquette_idx * 2 * d + (2 * d - 1)
+    elif plaquette_type == PlaquetteType.weight_two_top:
+        return d * (d - 1) + plaquette_idx * 2
+    elif plaquette_type == PlaquetteType.weight_two_bottom:
+        return 1 + plaquette_idx * 2
+
+
+def _get_start_qubit_idx_weight_four(plaquette_idx: int, d: int, basis: Basis) -> int:
+    """
+    Get the index of the top-left data qubit of a weight-4 plaquette.
+    """
+    assert 0 <= plaquette_idx < (d - 1) ** 2 // 2
+    plaquettes_per_row = (d - 1) // 2
+    row_id = plaquette_idx // plaquettes_per_row
+    col_id = plaquette_idx % plaquettes_per_row
+    parity = row_id % 2
+    if basis == Basis.X:
+        return (d * row_id) + col_id * 2 + parity
+    elif basis == Basis.Z:
+        return (d * row_id) + col_id * 2 + (1 - parity)
