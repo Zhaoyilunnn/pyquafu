@@ -2,6 +2,7 @@ from quafu.qec.codes.surface_code import (
     PlaquetteType,
     _get_start_qubit_idx_weight_four,
     _get_start_qubit_idx_weight_two,
+    Basis,
 )
 
 
@@ -50,25 +51,25 @@ def test_get_start_qubit_idx():
 
     ################ weight-4 plaquettes ################
     # d=3
-    assert _get_start_qubit_idx_weight_four(0, 3, "X") == 0
-    assert _get_start_qubit_idx_weight_four(1, 3, "X") == 4
-    assert _get_start_qubit_idx_weight_four(0, 3, "Z") == 1
-    assert _get_start_qubit_idx_weight_four(1, 3, "Z") == 3
+    assert _get_start_qubit_idx_weight_four(0, 3, Basis.X) == 0
+    assert _get_start_qubit_idx_weight_four(1, 3, Basis.X) == 4
+    assert _get_start_qubit_idx_weight_four(0, 3, Basis.Z) == 1
+    assert _get_start_qubit_idx_weight_four(1, 3, Basis.Z) == 3
 
     # d=5
-    assert _get_start_qubit_idx_weight_four(0, 5, "X") == 0
-    assert _get_start_qubit_idx_weight_four(1, 5, "X") == 2
-    assert _get_start_qubit_idx_weight_four(2, 5, "X") == 6
-    assert _get_start_qubit_idx_weight_four(3, 5, "X") == 8
-    assert _get_start_qubit_idx_weight_four(4, 5, "X") == 10
-    assert _get_start_qubit_idx_weight_four(5, 5, "X") == 12
-    assert _get_start_qubit_idx_weight_four(6, 5, "X") == 16
-    assert _get_start_qubit_idx_weight_four(7, 5, "X") == 18
-    assert _get_start_qubit_idx_weight_four(0, 5, "Z") == 1
-    assert _get_start_qubit_idx_weight_four(1, 5, "Z") == 3
-    assert _get_start_qubit_idx_weight_four(2, 5, "Z") == 5
-    assert _get_start_qubit_idx_weight_four(3, 5, "Z") == 7
-    assert _get_start_qubit_idx_weight_four(4, 5, "Z") == 11
-    assert _get_start_qubit_idx_weight_four(5, 5, "Z") == 13
-    assert _get_start_qubit_idx_weight_four(6, 5, "Z") == 15
-    assert _get_start_qubit_idx_weight_four(7, 5, "Z") == 17
+    assert _get_start_qubit_idx_weight_four(0, 5, Basis.X) == 0
+    assert _get_start_qubit_idx_weight_four(1, 5, Basis.X) == 2
+    assert _get_start_qubit_idx_weight_four(2, 5, Basis.X) == 6
+    assert _get_start_qubit_idx_weight_four(3, 5, Basis.X) == 8
+    assert _get_start_qubit_idx_weight_four(4, 5, Basis.X) == 10
+    assert _get_start_qubit_idx_weight_four(5, 5, Basis.X) == 12
+    assert _get_start_qubit_idx_weight_four(6, 5, Basis.X) == 16
+    assert _get_start_qubit_idx_weight_four(7, 5, Basis.X) == 18
+    assert _get_start_qubit_idx_weight_four(0, 5, Basis.Z) == 1
+    assert _get_start_qubit_idx_weight_four(1, 5, Basis.Z) == 3
+    assert _get_start_qubit_idx_weight_four(2, 5, Basis.Z) == 5
+    assert _get_start_qubit_idx_weight_four(3, 5, Basis.Z) == 7
+    assert _get_start_qubit_idx_weight_four(4, 5, Basis.Z) == 11
+    assert _get_start_qubit_idx_weight_four(5, 5, Basis.Z) == 13
+    assert _get_start_qubit_idx_weight_four(6, 5, Basis.Z) == 15
+    assert _get_start_qubit_idx_weight_four(7, 5, Basis.Z) == 17
