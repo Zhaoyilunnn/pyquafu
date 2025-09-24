@@ -106,8 +106,6 @@ def _get_start_qubit_idx_weight_four(plaquette_idx: int, d: int, basis: Basis) -
         return (d * row_id) + col_id * 2 + parity
     elif basis == Basis.Z:
         return (d * row_id) + col_id * 2 + (1 - parity)
-    else:
-        raise ValueError("basis must be Basis.X or Basis.Z")
 
 
 @dataclass
