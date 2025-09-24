@@ -59,8 +59,6 @@ def _get_data_qubits_in_touch_order(
                 start_idx + 1,
                 start_idx + d + 1,
             ]
-        else:
-            raise ValueError("basis must be Basis.X or Basis.Z")
     # Else: weight-2 plaquettes
     # Now we assume the top/bottom-boundary is X-type
     # and left/right-boundary is Z-type.
